@@ -458,7 +458,7 @@ def gui_setup():
 def generate_gui(fig, px, py, idx, waypoint_callback, operateObj):
     print("Specify waypoint on grid for robot to drive to")
     fig.canvas.mpl_connect('button_press_event', lambda event: enter_waypoint_on_click(event, fig, px, py, idx, waypoint_callback, operateObj))
-    bunch_of_functions(waypoint, robot_pose, operateObj)
+    bunch_of_functions(waypoint, robot_pose, operateObj)    
     plt.show()
 
 # Calls to drive the robot upon detecting a new waypoint input, continuously does so until you close the figure
@@ -652,23 +652,6 @@ if __name__ == "__main__":
         # drive_meas = Drive(lv, rv, 0.0)
         # operateObj.update_slam(drive_meas)
         
-        
-        # enter the waypoints
-        # instead of manually enter waypoints in command line, you can get coordinates by clicking on a map (GUI input), see camera_calibration.py
-        # x,y = 0.0,0.0
-        # x = input("X coordinate of the waypoint: ")
-        # try:
-        #     x = float(x)
-        # except ValueError:
-        #     print("Please enter a number.")
-        #     continue
-        # y = input("Y coordinate of the waypoint: ")
-        # try:
-        #     y = float(y)
-        # except ValueError:
-        #     print("Please enter a number.")
-        #     continue
-
         # estimate the robot's pose
         robot_pose = get_robot_pose(operateObj)
 
@@ -677,6 +660,21 @@ if __name__ == "__main__":
         generate_gui(fig, px, py, idx, waypoint_callback, operateObj)
         pygame.quit()
         sys.exit()
+
+            # Repeat the test until the correct time is found.      
+        while True:
+            delta_time = float(input("Input the time to drive in seconds: "))
+            start = time.time()
+            elapsed = 0
+            while elapsed < delta_time:
+                pibot.set_velocity(wheel_speed)
+                elapsed = time.time() - start
+            pibot.set_velocity([0,0])
+            uInput = input("Did the robot travel 1m? [y/N]")
+            if uInput == 'y':
+                delta_times.append(delta_time)
+                print("Recording that the robot drove 1m in {:.2f} seconds at wheel speed {}.\n".format(delta_time, wheel_speed))
+                break
 
 
 

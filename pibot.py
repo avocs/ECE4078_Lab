@@ -21,7 +21,11 @@ class PibotControl:
         self.wheel_vel = [left_speed, right_speed]
         requests.get(f"http://{self.ip}:{self.port}/move?left_speed="+str(left_speed)+"&right_speed="+str(right_speed))
         return left_speed, right_speed
-        
+    
+    # TODO dra mod 
+    def set_target(self,left_ticks, right_ticks):
+        requests.get(f"http://{self.ip}:{self.port}/set_target?left_ticks="+str(left_ticks)+"&right_ticks="+str(right_ticks))
+        return left_ticks, right_ticks
         
     def get_image(self):
         try:

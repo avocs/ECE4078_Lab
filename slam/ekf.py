@@ -192,7 +192,7 @@ class EKF:
         R = np.zeros((2*len(measurements),2*len(measurements)))
         for i in range(len(measurements)):
             #TODO CHANGED Y=T=FRM 0.1 TO 0.01
-            R[2*i:2*i+2,2*i:2*i+2] = 0.01*np.eye(2)
+            R[2*i:2*i+2,2*i:2*i+2] = 0.1*np.eye(2)
 
         # Compute own measurements
         z_hat = self.robot.measure(self.markers, idx_list)              # This is h function

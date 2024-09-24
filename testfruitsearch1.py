@@ -191,8 +191,8 @@ def read_true_map(fname):
                     aruco_true_pos[9][1] = y
                 else:
                     marker_id = int(key[5])
-                    aruco_true_pos[marker_id][0] = x
-                    aruco_true_pos[marker_id][1] = y
+                    aruco_true_pos[marker_id-1][0] = x
+                    aruco_true_pos[marker_id-1][1] = y
             else:
                 fruit_list.append(key[:-2])
                 if len(fruit_true_pos) == 0:
@@ -295,6 +295,10 @@ def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.7, wheel_rot_speed=0.
 
     print(f"driving for {drive_time}s")
 
+    # TODO dra mod 
+    # pibot_control.set_target(100, 100)
+    # pibot_control.set_velocity(drive_speeds)
+
 
     # nyoom 
     start = time.time()
@@ -313,7 +317,6 @@ def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.7, wheel_rot_speed=0.
 
 
 def drive_to_point(waypoint):
-    # NOTE: fuck it we ball, robot pose shall now be global for my sanity
     global robot_pose
 
     # 1. Robot rotates, turning towards the waypoint
