@@ -23,9 +23,17 @@ class PibotControl:
         return left_speed, right_speed
     
     # TODO dra mod 
-    def set_target(self,left_ticks, right_ticks):
-        requests.get(f"http://{self.ip}:{self.port}/set_target?left_ticks="+str(left_ticks)+"&right_ticks="+str(right_ticks))
-        return left_ticks, right_ticks
+    def get_counter_values(self):
+            response = requests.get(f"http://{self.ip}:{self.port}/encoders")  # Replace with your Pi's IP
+            if response.status_code == 200:
+                data = response.json()
+                # print(f"Received data: {data}")  # Debugging print statement
+                self.left_encoder = data["left_encoder"]
+                self.right_encoder = data["right_encoder"]
+                return self.left_encoder, self.right_encoder
+            else:
+                print("Failed to get encoder values.")
+                return None, None
         
     def get_image(self):
         try:

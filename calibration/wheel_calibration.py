@@ -62,7 +62,7 @@ def calibrateScale():
 
     return scale
 
-
+# NOTE: sandra just straight hardcoded the baseline to 12.45e-2 m. im about to lose it
 def calibrateBaseline(scale):
     # The baseline parameter is the distance between the wheels.
     # This part is similar to the calibrateScale function, difference is that the robot is spinning 360 degree.
