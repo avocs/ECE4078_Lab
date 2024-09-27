@@ -363,7 +363,7 @@ class Operate:
             pygame.quit()
             sys.exit()
             
-############################## AUTO FRUIT SEARCH FUNCTIONS FOR OPERATE CLASS ########################
+############################## A* FUNCTIONS FOR OPERATE CLASS ########################
 
     def display_map(self, aruco_true_pos, fruits_copy):
         '''
@@ -475,6 +475,7 @@ class Operate:
                 self.command['auto_fruit_search'] = False
     
     
+########################## ROBOT DRIVE FUNCTIONS FOR OPERATE CLASS #####################
     # drive to a waypoint from current position
     def drive_to_point(self, waypoint, canvas):
         '''
@@ -548,7 +549,6 @@ class Operate:
         baseline = self.baseline
 
         # clamp angle between -180 to 180 deg 
-        # print(f'preturn {turning_angle}')
         turning_angle = turning_angle % (2*np.pi) # shortcut to while loop deducting 2pi 
         # if the angle is more than 180 deg, make this a negative angle instead 
         turning_angle = turning_angle - 2*np.pi if turning_angle > np.pi else turning_angle
@@ -672,6 +672,8 @@ class Operate:
 
         return straight_drive_meas
 
+############################ WAYPOINT UPDATE AND SLAM HELPER FUNCTIONS FOR OPERATE CLASS ####################
+
     # TODO added
     def waypoint_update(self, steps=3):
         for _ in range(steps):
@@ -697,6 +699,7 @@ class Operate:
         
         wheel_vel = 20 # tick to move the robot
         
+        # TODO this needs calibration
         turn_resolution = 2*np.pi/num_turns
         if(num_turns==8):
             turn_offset=0.024
@@ -720,7 +723,7 @@ class Operate:
 
             print(f"Position rotate: {self.ekf.robot.state.squeeze().tolist()}")
 
-########################### NOTE: OPERATION HERE ##############################
+########################### NOTE: KEYBOARD OPERATION DONE HERE ##############################
     
     # Keyboard control for Milestone 4 Level 2
     def update_keyboard_M4(self):
@@ -792,7 +795,7 @@ class Operate:
             sys.exit()
 
 ####################################### END OPERATE CLASS DEFINITION  ########################################################################
-####################################### START TRUE MAP AND SEARCH LIST HELPER FUNCTIONS  #####################################################
+####################################### TRUE MAP AND SEARCH LIST HELPER FUNCTIONS  #####################################################
 def read_true_map(fname):
     """
     Read the ground truth map and output the pose of the ArUco markers and 3 types of target fruit to search
@@ -863,7 +866,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
                 print('{}) {} at [{}, {}]'.format(n_fruit, fruit, np.round(fruit_true_pos[i][0], 1), np.round(fruit_true_pos[i][1], 1)))
         n_fruit += 1
 
-####################################### END TRUE MAP AND SEARCH LIST HELPER FUNCTIONS  #####################################################
+####################################### MAIN #####################################################
 
 if __name__ == "__main__":
     import argparse
@@ -913,6 +916,7 @@ if __name__ == "__main__":
     fruit_goals = print_target_fruits_pos(search_list, fruit_list, fruit_true_pos)
     print("=========================================================")
 
+    # TODO: define sequence of items here 
     while start:
         operate.update_keyboard_M4()
         
@@ -931,8 +935,8 @@ if __name__ == "__main__":
         
         # perform fruit search
         operate.auto_fruit_search(canvas)
-        angle = operate.ekf.robot.state[2][0]
-        angle = angle*180/np.pi
-        angle = angle % 360
+        # angle = operate.ekf.robot.state[2][0]
+        # angle = angle*180/np.pi
+        # angle = angle % 360
         #print(f"Position_rad: {operate.ekf.robot.state.squeeze().tolist()}")
         # print(f"Position: {operate.ekf.robot.state[0][0]},{operate.ekf.robot.state[1][0]},{angle}")
