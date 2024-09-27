@@ -95,7 +95,6 @@ class Operate:
         self.ekf_on = False
         self.double_reset_comfirm = 0
         self.image_id = 0
-        self.checkimgid = 0                 # here for funsies
         self.notification = 'Press ENTER to start SLAM'
         self.count_down = 300 # 5 min timer
         self.start_time = time.time()
@@ -273,6 +272,7 @@ class Operate:
     
     @staticmethod
     def put_caption(canvas, caption, position, text_colour=(200, 200, 200)):
+        # TODO - REEN
         TITLE_FONT = pygame.font.Font('ui/8-BitMadness.ttf', 35)
         caption_surface = TITLE_FONT.render(caption,
                                           False, text_colour)

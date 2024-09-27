@@ -32,6 +32,9 @@ import a_star_path_planning as astar
 
 # NOTE: 
 '''
+0. As sandra continues fucking around and finding out, she found it wiser to just bring in the entire operate class
+cuz of some functions that are quite useful and im sick of copy pasting 
+hahaha im going insane. this file is gonna stay around for referencing though! 
 1. added code to generate the waypoints from the path planning file
 2. trying to find a sequence to search for fruits here
 3. 
@@ -414,6 +417,7 @@ def rotate_robot(num_turns=4):
 
 def capture_and_read_image():
     # take photo of fruit
+    # i give up i should just bring in the entirety of operate.py here
     raw_img = pibot_control.get_image()
     global aruco_img
     measurements, aruco_img = aruco_sensor.detect_marker_positions(raw_img)

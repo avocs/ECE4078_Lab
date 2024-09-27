@@ -238,11 +238,14 @@ def robot_move_rotate(turning_angle=0, wheel_lin_speed=0.7, wheel_rot_speed=0.4)
     this function makes the robot turn a fixed angle automatically
 
     '''
-    global robot_pose 
-    full_rotation_time = 2.0       # TODO whatever this is 
+    global robot_pose, baseline
+    full_rotation_time = 3.0       # TODO whatever this is 
     wheel_rot_speed = 0.4 
 
-    # could have a calibration baseline to determine turning base speed
+    ticks_per_revolution = 20
+    wheel_diameter = 66e-3            # yoinked from cytron
+
+
 
     # clamp angle between -180 to 180 deg 
     print(f'preturn {turning_angle}')
@@ -255,6 +258,22 @@ def robot_move_rotate(turning_angle=0, wheel_lin_speed=0.7, wheel_rot_speed=0.4)
     # -- time to turn according to ratio 
     turning_time = abs(turning_angle) * full_rotation_time / (2 * np.pi) 
 
+    # wheel circumference
+    wheel_circum = np.pi * wheel_diameter
+    #  If the robot pivoted 360°, the distance traveled by each wheel 
+    # would be equal to the circumference of this pivot circle
+    pivot_circum = np.pi * baseline 
+    distance_per_wheel = (turning_angle / (2*np.pi)) * pivot_circum
+
+    # distance each wheel must travel
+    # distance_per_wheel = (baseline/2) * turning_angle
+    turning_revolutions = distance_per_wheel / wheel_circum
+    num_ticks = turning_revolutions * ticks_per_revolution
+    # manual override
+    print(f'turning for {num_ticks} ticks for {turning_angle_deg}')
+    print(f"turning for {turning_time}s to {turning_angle_deg}")
+
+
     # -- direction of wheels, depending on sign
     if turning_time != 0: # if the car is not going straight/has to turn
         if (turning_angle) > 0: # turn left 
@@ -263,17 +282,35 @@ def robot_move_rotate(turning_angle=0, wheel_lin_speed=0.7, wheel_rot_speed=0.4)
             lv, rv = [wheel_rot_speed, -wheel_rot_speed] 
     else: 
         lv, rv = [0.0, 0.0]
+    
+    turn_speeds = [lv, rv]
 
-    print(f"turning for {turning_time}s to {turning_angle_deg}")
-    wheel_rotation_speeds = [lv, rv]
+    # alt nyoom 
+    initial_ticks = pibot_control.get_counter_values()
+    ticks_travelled_left, ticks_travelled_right = 0,0
+    pibot_control.set_velocity(turn_speeds)
 
-    # nyoom 
-    start = time.time()
-    elapsed = 0
-    while elapsed < turning_time:
-        pibot_control.set_velocity(wheel_rotation_speeds)
-        elapsed = time.time() - start
+    while True: 
+        curr_ticks = pibot_control.get_counter_values()
+        ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
+        ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
+        print(f"curr_ticks {curr_ticks}")
+
+        if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
+            break
     pibot_control.set_velocity([0,0])
+    
+
+    # wheel_rotation_speeds = [lv, rv]
+
+    # # nyoom 
+    # start = time.time()
+    # elapsed = 0
+    # while elapsed < turning_time:
+    #     pibot_control.set_velocity(wheel_rotation_speeds)
+    #     elapsed = time.time() - start
+    # pibot_control.set_velocity([0,0])
+
 
     turn_drive_meas = Drive(lv, rv, turning_time)
     # get_robot_pose(turn_drive_meas)
@@ -288,24 +325,47 @@ def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.7, wheel_rot_speed=0.
     '''
     global robot_pose, scale
 
+    ticks_per_revolution = 20
+    wheel_diameter = 66e-3            # yoinked from cytron
+
+    # wheel circumference
+    wheel_circum = np.pi * wheel_diameter
+    drive_revolutions = dist_to_waypt / wheel_circum
+    num_ticks = drive_revolutions * ticks_per_revolution
+
     # time to drive straight for 
     drive_time = dist_to_waypt / (scale * wheel_lin_speed)
     lv, rv = wheel_lin_speed, wheel_lin_speed
     drive_speeds = [lv, rv] 
 
+    # number of ticks to drive striaght for
+    print(f'driving for {num_ticks} ticks')
     print(f"driving for {drive_time}s")
-
-    # TODO dra mod 
-    # pibot_control.set_target(100, 100)
-    # pibot_control.set_velocity(drive_speeds)
 
 
     # nyoom 
-    start = time.time()
-    elapsed = 0
-    while elapsed < drive_time:
-        pibot_control.set_velocity(drive_speeds)
-        elapsed = time.time() - start
+    # start = time.time()
+    # elapsed = 0
+    # while elapsed < drive_time:
+    #     pibot_control.set_velocity(drive_speeds)
+    #     elapsed = time.time() - start
+    # pibot_control.set_velocity([0,0])
+
+    # alt nyoom 
+    initial_ticks = pibot_control.get_counter_values()
+    ticks_travelled_left, ticks_travelled_right = 0,0
+    pibot_control.set_velocity(drive_speeds)
+
+    while True: 
+        curr_ticks = pibot_control.get_counter_values()
+        print(f"curr_ticks {curr_ticks}")
+
+        ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
+        ticks_travelled_right = curr_ticks[1] - initial_ticks[1]\
+        
+        if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
+            break
+    
     pibot_control.set_velocity([0,0])
 
     straight_drive_meas = Drive(lv, rv, drive_time)
@@ -313,7 +373,6 @@ def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.7, wheel_rot_speed=0.
     robot_pose[0], robot_pose[1] = waypoint[0], waypoint[1]
 
     return None 
-
 
 
 def drive_to_point(waypoint):
@@ -330,18 +389,23 @@ def drive_to_point(waypoint):
     print(f'curr orientation {robot_pose[2]}, angle_towaypt {angle_to_waypt}, turning_angle{turning_angle}')
     robot_move_rotate(turning_angle)
     print(f"Robot Pose: {robot_pose}\n")
+    time.sleep(0.1)
 
     # 2. Robot drives straight towards waypt
     # ===============================================
     dist_to_waypt = math.hypot(x_dist_to_waypt, y_dist_to_waypt)
     robot_move_straight(dist_to_waypt)
     print(f"Robot Pose: {robot_pose}\n")
+    time.sleep(0.1)
+
     # 3. Robot reorients itself to world y-axis
     # =============================================
     robot_move_rotate(-turning_angle)
+    time.sleep(0.1)
     # 4. arrived at waypoint 
     # =================================================
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
+
 
 
 
@@ -351,38 +415,6 @@ def get_robot_pose(drive_meas):
     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here
 
     # this is uhhhh inaccurate 
-    '''
-X coordinate of the waypoint: 0.0
-Y coordinate of the waypoint: 0.4
-curr orientation 1.5707963267948966, angle_towaypt 1.5707963267948966, turning_angle0.0
-preturn 0.0
-turning for 0.0s to 0.0
-Robot Pose: [0.0, 0.0, 1.5707963267948966]
-
-driving for 0.8773771676276136s
-Robot Pose: [0.0, 0.4, 1.5707963267948966]
-
-preturn -0.0
-turning for 0.0s to 0.0
-Arrived at [0.0, 0.4]
-Finished driving to waypoint: [0.0, 0.4]; New robot pose: [0.0, 0.4, 1.5707963267948966]
-Add a new waypoint? [Y/N]y
-X coordinate of the waypoint: 0.0
-Y coordinate of the waypoint: -0.4
-curr orientation 1.5707963267948966, angle_towaypt -1.5707963267948966, turning_angle-3.141592653589793
-preturn -3.141592653589793
-turning for 1.0s to 3.141592653589793
-Robot Pose: [0.0, 0.4, 4.71238898038469]
-
-driving for 1.7547543352552273s
-Robot Pose: [0.0, -0.4, 4.71238898038469]
-
-preturn 3.141592653589793
-turning for 1.0s to 3.141592653589793
-Arrived at [0.0, -0.4]
-Finished driving to waypoint: [0.0, -0.4]; New robot pose: [0.0, -0.4, 7.853981633974483]
-Add a new waypoint? [Y/N]n
-    '''
     # obtain angle with respect to x-axis
     # robot_pose[2] = np.arctan2(waypoint[1]-robot_pose[1],waypoint[0]-robot_pose[0])
     # robot_pose[2] = (robot_pose[2] + 2*np.pi) if (robot_pose[2] < 0) else robot_pose[2] # limit from 0 to 360 degree
