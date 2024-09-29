@@ -2,11 +2,19 @@
 # Adapted stuffs for M4 
 # first fucked around by: sandra
 # date time fuck around: 25/09/2024 1:16am
+# last date time fuck around: 29/09/2024 1am
+
 # NOTE:
 '''
 yoinked operate and adapted code in a futile attempt to run astar. 
-not yet tested for errors due to eepy causes
-will run through code logic again, esp for keyboard control, when i feel less eepy
+How to run this file: 
+python afruitsearch2.py --ip 192.168.137.45 --map m4test1.txt 
+1. enter pygame
+2. press ENTER -- starts slam
+3. press T -- loads true map
+4. (optional for now) press P -- enables object detection
+5. press A -- generate search path, close matplot window when done looking
+6. press W - start auto fruit search
 
 '''
 
@@ -58,26 +66,8 @@ class Operate:
                         'auto_fruit_search': False}
                         
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
-        self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)
-        
-        # Create a folder "lab_output" that stores the results of the lab
-        # self.lab_output_dir = 'lab_output/'
-        # if not os.path.exists(self.lab_output_dir):
-        #     os.makedirs(self.lab_output_dir)
-        # self.pred_output_dir = 'pred_output/'
-        # if not os.path.exists(self.pred_output_dir):
-        #     os.makedirs(self.pred_output_dir)
-        # else:
-        #     # Delete the folder and create an empty one, i.e. every operate.py is run, this folder will be empty.
-        #     shutil.rmtree(self.pred_output_dir)
-        #     os.makedirs(self.pred_output_dir)
-        # self.save_output_dir = 'save_output/'
-        # if not os.path.exists(self.save_output_dir):
-        #     os.makedirs(self.save_output_dir)
-        # else:
-        #     # Delete the folder and create an empty one, i.e. every operate.py is run, this folder will be empty.
-        #     shutil.rmtree(self.save_output_dir)
-        #     os.makedirs(self.save_output_dir)      
+        # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
+        self.pibot_control.set_pid(use_pid=0, kp=0.1, ki=0, kd=0.0005)  
 
         # Initialise SLAM parameters (M2)
         self.ekf = self.init_ekf(args.calib_dir, args.ip)
@@ -89,22 +79,13 @@ class Operate:
         else:
             self.obj_detector = ObjectDetector(args.yoloV8)
             self.prediction_img = np.ones((480,640,3))* 100
-        
-        # Create a folder to save raw camera images after pressing "i" (M3)
-        # self.raw_img_dir = 'raw_images/'
-        # if not os.path.exists(self.raw_img_dir):
-        #     os.makedirs(self.raw_img_dir)
-        # else:
-        #     # Delete the folder and create an empty one, i.e. every operate.py is run, this folder will be empty.
-        #     shutil.rmtree(self.raw_img_dir)
-        #     os.makedirs(self.raw_img_dir)
 
         # Other auxiliary objects/variables      
         self.quit = False
         self.pred_fname = ''
         self.request_recover_robot = False
         self.obj_detector_output = None
-        self.ekf_on = False
+        self.ekf_on = True
         self.double_reset_comfirm = 0
         self.image_id = 0
         self.notification = 'Press ENTER to start SLAM'
@@ -118,9 +99,9 @@ class Operate:
 
         # TODO sandra: aux objects/vars added for m4
         self.waypoints_list = []
-        self.count_rot=0
-        self.default_rot_speeds = [0.4, -0.4]   # pivot during rotate-n-search
-
+        # self.count_rot=0
+        # self.default_rot_speeds = [0.4, -0.4]   # pivot during rotate-n-search
+        self.curr_waypoint_count = 0
 
     # wheel control
     def control(self):       
@@ -154,16 +135,16 @@ class Operate:
     # SLAM with ARUCO markers       
     def update_slam(self, drive_meas):
         measurements, self.aruco_img = self.aruco_sensor.detect_marker_positions(self.img)
-        if self.request_recover_robot:
-            is_success = self.ekf.recover_from_pause(measurements)
-            if is_success:
-                self.notification = 'Robot pose is successfuly recovered'
-                self.ekf_on = True
-            else:
-                self.notification = 'Recover failed, need >2 landmarks!'
-                self.ekf_on = False
-            self.request_recover_robot = False
-        elif self.ekf_on:
+        # if self.request_recover_robot:
+        #     is_success = self.ekf.recover_from_pause(measurements)
+        #     if is_success:
+        #         self.notification = 'Robot pose is successfuly recovered'
+        #         self.ekf_on = True
+        #     else:
+        #         self.notification = 'Recover failed, need >2 landmarks!'
+        #         self.ekf_on = False
+        #     self.request_recover_robot = False
+        if self.ekf_on:
             self.ekf.predict(drive_meas)
             
             # M3, disable updates to aruco markers if true map is loaded
@@ -171,10 +152,16 @@ class Operate:
                 self.notification = 'SLAM locates robot pose'
                 self.command['load_true_map'] = False
             else: 
-                self.ekf.add_landmarks(measurements)
-                self.ekf.update(measurements)
+                if len(measurements) >= 2:
+                    self.ekf.add_landmarks(measurements)
+                    self.ekf.update(measurements)
+                    self.notification = 'Updating SLAM'
+                else:
+                    # self.ekf.add_landmarks(measurements)
+                    # self.ekf.update(measurements)
+                    self.notification = 'Insufficient markers for updating SLAM'
         
-    # save SLAM map 
+    # save SLAM map // unused for lvl2
     def record_data(self):
         # this saves slam map to slam.txt upon pressing 's' 
         if self.command['save_slam']:
@@ -214,7 +201,7 @@ class Operate:
             self.obj_detector_pred, self.prediction_img = self.obj_detector.detect_single_image(self.img)
             str_preds = [str(pred) for pred in self.obj_detector_pred]
             self.fin_prediction_img = cv2.cvtColor(self.prediction_img, cv2.COLOR_RGB2BGR)
-            self.command['run_obj_detector'] = False
+            # self.command['run_obj_detector'] = False
             self.obj_detector_output = (self.obj_detector_pred, self.ekf.robot.state.tolist())
             self.notification = f'{len(np.unique(str_preds))} object type(s) detected'
 
@@ -350,6 +337,7 @@ class Operate:
                 self.quit = True
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.quit = True
+
             # load true map into ekf
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
                 if args.map:
@@ -365,9 +353,10 @@ class Operate:
             
 ############################## A* FUNCTIONS FOR OPERATE CLASS ########################
 
-    def display_map(self, aruco_true_pos, fruits_copy):
+    def display_map(self, aruco_true_pos, fruits_true_pos):
         '''
-        Function provides a preview of the waypoints generated by the path planning algorithm
+        Function provides a preview of the map generated by the path planning algorithm
+        but i think this only plots the trueposes
         '''
         # plot result of path planning and show in a figure 
         x_aruco = []
@@ -386,17 +375,17 @@ class Operate:
         # fruit_color = [[128, 0, 0], [155, 255, 70], [255, 85, 0], [255, 180, 0], [0, 128, 0]]
         fruit_colour = ["red", "cyan", "orange", "yellow", "green"]
 
-        for i in range(len(fruits_copy)):
-            x_fruits.append(fruits_copy[i][0])
-            y_fruits.append(fruits_copy[i][1])
+        for i in range(len(fruits_true_pos)):
+            x_fruits.append(fruits_true_pos[i][0])
+            y_fruits.append(fruits_true_pos[i][1])
         plt.scatter(x_fruits, y_fruits, c=fruit_colour, s=100)
         for i, (x, y) in enumerate(zip(x_fruits, y_fruits), 1):
             plt.annotate(f'{i+10}', (x, y), textcoords="offset points", xytext=(0,-10), ha='center')
         
-        plt.grid()
+        plt.grid(True)
         plt.show()    
 
-    # TODO sandra 
+    # TODO will need to mod here
     def generate_path_astar(self, search_list, fruits_list, fruits_true_pos):
         '''
         This is the a* algorithm implemented to generate waypoints towards all the fruits to search for
@@ -431,46 +420,56 @@ class Operate:
                 # print(dest)
             grid_dest = astar.convert_coord_to_grid(dest)
             grid = astar.modify_obstacles(aruco_true_pos.tolist(), search_index[i], fruits_true_pos.tolist())
-            # waypoints.append(astar.a_star_search(grid, grid_src, grid_dest))
-            self.waypoints_list.append(astar.a_star_search(grid, grid_src, grid_dest).tolist())
+            waypoints = astar.a_star_search(grid, grid_src, grid_dest)
+            simplified_waypoints = astar.simplify_path(waypoints)
+            self.waypoints_list.append(simplified_waypoints)
+            astar.plot_waypoints(simplified_waypoints)
+            # self.waypoints_list.append(astar.a_star_search(grid, grid_src, grid_dest).tolist())
             src = dest
             # Feedback
         print(f"Path generated: {self.waypoints_list}") 
         self.display_map(aruco_true_pos, fruits_copy)
 
+################################ MAIN ALGORITHM ########################################
 
     # TODO will need to tweak some stuffs here
     def auto_fruit_search(self, canvas):
         '''
         Perform fruit search to all fruits in search list
         '''
+
         if self.command['auto_fruit_search']:
             print(f"Starting auto_fruit_search..")
             if any(self.waypoints_list):
+                # fruit number for printing purposes
+                curr_fruit = len(search_list) - len(self.waypoints_list) + 1
                 if self.waypoints_list[0]:
-                    # robot drives to the waypoint
-                    print(f"Waypoint {self.waypoints_list[0][0]}")
-                    self.drive_to_point(self.waypoints_list[0][0], canvas)
-                    robot_pose = self.ekf.robot.state.squeeze().tolist()
+                    # waypoint_to_go = self.waypoints_list[0][0]
+                    self.curr_waypoint_count += 1
+
+                    # robot tries to drive to the waypoint
+                    print("\n---------------------------------------")
+                    print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {self.waypoints_list[0][0]}")
+                    _ , _ = self.drive_to_point(self.waypoints_list[0][0], canvas)
+                    robot_pose = self.get_robot_pose()
                     print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
                     print()
                     
+                    # remove that waypoint off the waypoint list
                     self.waypoints_list[0].pop(0)
                     print(f"New waypoints list: {self.waypoints_list}")
 
+                    
+                    # if the waypoint is the last one in its list, means fruit is found
                     if not self.waypoints_list[0]:
                         self.waypoints_list.pop(0)
                         print("Fruit reached, robot sleeps for 2 seconds")
                         time.sleep(2)
 
                     self.record_data()
-
-                    self.count_rot=self.count_rot+1
-                    if self.count_rot==4:
-                        self.rotate_robot(num_turns=12)
-                        self.count_rot=0
             else:
                 print("Waypoints list is empty")
+                self.curr_waypoint_count = 0
                 self.waypoints_list = []
                 self.command['auto_fruit_search'] = False
     
@@ -485,7 +484,8 @@ class Operate:
         '''
         
         # compute x and y distance to waypoint
-        robot_pose = self.ekf.robot.state.squeeze().tolist()
+        robot_pose = self.get_robot_pose()
+        print(f"Starting position: {robot_pose}")
 
         print(f"Robot is driving!")
 
@@ -497,43 +497,39 @@ class Operate:
         # this is the angle that the robot needs to turn, in radians. sign determines direction of turning
         turning_angle = angle_to_waypt - robot_pose[2]         # compute minimum turning angle to waypoint
         
-        # print(f'curr orientation {robot_pose[2]}, angle_towaypt {angle_to_waypt}, turning_angle{turning_angle}')
+
+        print(f'--- curr orientation {robot_pose[2]}, angle_towaypt {angle_to_waypt}, turning_angle{turning_angle}')
         turn_drive_meas = self.robot_move_rotate(turning_angle)
 
         time.sleep(0.5)
-        self.take_pic()
-        self.update_slam(turn_drive_meas)
-        self.waypoint_update()
-            
+        # self.take_pic()
+
+        robot_pose = self.get_robot_pose()
         # print("Turning for {:.2f} seconds".format(turning_time))
-        # print(f"Robot Pose: {robot_pose}\n")
-        print(f"Position: {operate.ekf.robot.state.squeeze().tolist()}")
-            
-        # update pygame display
-        self.draw(canvas)
-        pygame.display.update()
-        
+        print(f"Post Turn Position: {robot_pose}\n")
+        # print(f"Post Turn Position: {operate.ekf.robot.state.squeeze().tolist()}")
+        # print(f"Position: {robot_pose[0]:.2f}, {robot_pose[1]:.2f}, {robot_pose[2] + turning_angle:.2f}")        
                 
         # 2. Robot drives straight towards waypt
         # ===============================================
         dist_to_waypt = math.hypot(x_dist_to_waypt, y_dist_to_waypt)
-        straight_drive_meas = self.robot_move_straight(dist_to_waypt)
-
-        time.sleep(0.5)
+        print(f'--- dist to waypoint: {x_dist_to_waypt}, {y_dist_to_waypt}')
         self.take_pic()
-        self.update_slam(straight_drive_meas)
-        self.waypoint_update()
+        straight_drive_meas = self.robot_move_straight(dist_to_waypt)
+        
+        time.sleep(0.5)
             
         # print("Driving for {:.2f} seconds".format(drive_time))
         # print(f"Robot Pose: {robot_pose}\n")
-        print(f"Position: {operate.ekf.robot.state.squeeze().tolist()}")
+        print(f"Post Drive Position: {operate.ekf.robot.state.squeeze().tolist()}")
+        # print(f"Position: {waypoint[0], waypoint[1], robot_pose[2] + turning_angle}")
         
-        # update pygame display
-        self.draw(canvas)
-        pygame.display.update()
 
         print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
+
+        return turn_drive_meas, straight_drive_meas
     
+   ######################################################### 
     # TODO nyoom nyoom
     def robot_move_rotate(self, turning_angle=0, wheel_lin_speed=0.5, wheel_rot_speed=0.4):
         '''
@@ -542,11 +538,15 @@ class Operate:
         '''
         # global robot_pose
         full_rotation_time = 3.0       # TODO whatever this is 
-        wheel_rot_speed = 0.4 
 
         ticks_per_revolution = 20
         wheel_diameter = 66e-3            # yoinked from cytron
         baseline = self.baseline
+
+        if abs(turning_angle) > 0:
+            tick_offset = 8
+        else: 
+            tick_offset = 0
 
         # clamp angle between -180 to 180 deg 
         turning_angle = turning_angle % (2*np.pi) # shortcut to while loop deducting 2pi 
@@ -568,9 +568,9 @@ class Operate:
         # distance each wheel must travel
         # distance_per_wheel = (baseline/2) * turning_angle
         turning_revolutions = distance_per_wheel / wheel_circum
-        num_ticks = turning_revolutions * ticks_per_revolution
+        num_ticks = turning_revolutions * ticks_per_revolution + tick_offset
         # manual override
-        print(f'turning for {num_ticks} ticks to {turning_angle_deg}')
+        print(f'Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
         # print(f"turning for {turning_time}s to {turning_angle_deg}")
 
 
@@ -594,29 +594,25 @@ class Operate:
             curr_ticks = self.pibot_control.get_counter_values()
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            print(f"curr_ticks {curr_ticks}")
+            # print(f"curr_ticks {curr_ticks}")
 
             if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
                 break
         self.pibot_control.set_velocity([0,0])
         
 
-        # wheel_rotation_speeds = [lv, rv]
-
-        # # nyoom 
-        # start = time.time()
-        # elapsed = 0
-        # while elapsed < turning_time:
-        #     pibot_control.set_velocity(wheel_rotation_speeds)
-        #     elapsed = time.time() - start
-        # pibot_control.set_velocity([0,0])
-
-
+        # update own location only after finished driving
+        self.take_pic()
         turn_drive_meas = Drive(lv, rv, turning_time)
-        # get_robot_pose(turn_drive_meas)
-        # robot_pose[2] += turning_angle
+        print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
+        self.update_slam(turn_drive_meas)
+
+        # update display 
+        self.draw(canvas)
+        pygame.display.update()
 
         return turn_drive_meas 
+#####################################################
 
     # TODO nyoom nyoom 
     def robot_move_straight(self, dist_to_waypt=0, wheel_lin_speed=0.5, wheel_rot_speed=0.4):
@@ -626,10 +622,15 @@ class Operate:
         ticks_per_revolution = 20
         wheel_diameter = 66e-3            # yoinked from cytron
 
+        if dist_to_waypt > 0:
+            tick_offset = 16
+        else: 
+            tick_offset = 0
+
         # wheel circumference
         wheel_circum = np.pi * wheel_diameter
         drive_revolutions = dist_to_waypt / wheel_circum
-        num_ticks = drive_revolutions * ticks_per_revolution
+        num_ticks = drive_revolutions * ticks_per_revolution + tick_offset
 
         # time to drive straight for 
         drive_time = dist_to_waypt / (self.scale * wheel_lin_speed)
@@ -637,17 +638,8 @@ class Operate:
         drive_speeds = [lv, rv] 
 
         # number of ticks to drive striaght for
-        print(f'driving for {num_ticks} ticks to {dist_to_waypt}')
+        print(f'driving for {num_ticks:.2f} ticks to {dist_to_waypt:.2f}')
         # print(f"driving for {drive_time}s")
-
-
-        # nyoom 
-        # start = time.time()
-        # elapsed = 0
-        # while elapsed < drive_time:
-        #     pibot_control.set_velocity(drive_speeds)
-        #     elapsed = time.time() - start
-        # pibot_control.set_velocity([0,0])
 
         # alt nyoom 
         initial_ticks = self.pibot_control.get_counter_values()
@@ -656,7 +648,7 @@ class Operate:
 
         while True: 
             curr_ticks = self.pibot_control.get_counter_values()
-            print(f"curr_ticks {curr_ticks}")
+            # print(f"curr_ticks {curr_ticks}")
 
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]\
@@ -666,63 +658,92 @@ class Operate:
         
         self.pibot_control.set_velocity([0,0])
 
+        # update own location only after finished driving
+        self.take_pic()
         straight_drive_meas = Drive(lv, rv, drive_time)
-        # get_robot_pose(straight_drive_meas)
-        # robot_pose[0], robot_pose[1] = waypoint[0], waypoint[1]
+        print(f'strdrv {straight_drive_meas.left_speed} {straight_drive_meas.right_speed} {straight_drive_meas.dt}')
+        self.update_slam(straight_drive_meas)
 
+        # update display 
+        self.draw(canvas)
+        pygame.display.update()
         return straight_drive_meas
+#########################################################
 
+
+    def get_robot_pose(self):
+    ####################################################
+        ## method 1: hardcoded positioning 
+        '''
+        # robot_pose = [0.0,0.0,0.0]
+
+        # obtain angle with respect to x-axis
+        robot_pose[2] = np.arctan2(waypoint[1]-robot_pose[1],waypoint[0]-robot_pose[0])
+        robot_pose[2] = (robot_pose[2] + 2*np.pi) if (robot_pose[2] < 0) else robot_pose[2] # limit from 0 to 360 degree
+
+        robot_pose[0] = waypoint[0]
+        robot_pose[1] = waypoint[1]
+
+        return robot_pose
+        '''
+    ####################################################
+        ## method 2: SLAM
+        return self.ekf.robot.state.squeeze().tolist()
+    
 ############################ WAYPOINT UPDATE AND SLAM HELPER FUNCTIONS FOR OPERATE CLASS ####################
 
-    # TODO added
-    def waypoint_update(self, steps=3):
+    # TODO added, not sure if i still need it, probably yes
+    def location_update(self, steps=2):
         for _ in range(steps):
             self.take_pic()
             lv, rv = self.pibot_control.set_velocity([0, 0])
             drive_meas = Drive(lv, rv, 0.0)
-            self.update_slam(drive_meas)
-
+            # self.update_slam(drive_meas)
+        
             # update pygame display
             self.draw(canvas)
             pygame.display.update()
         
-    # TODO added rotate robot to scan landmarks
-    def rotate_robot(self, num_turns=4):
-        # imports camera / wheel calibration parameters 
-        # global scale, baseline 
-        # fileS = "calibration/param/scale.txt"
-        # scale = np.loadtxt(fileS, delimiter=',')
-        # fileB = "calibration/param/baseline.txt"
-        # baseline = np.loadtxt(fileB, delimiter=',')
-        scale = self.scale
-        baseline = self.baseline
-        
-        wheel_vel = 20 # tick to move the robot
-        
-        # TODO this needs calibration
-        turn_resolution = 2*np.pi/num_turns
-        if(num_turns==8):
-            turn_offset=0.024
-        elif num_turns==12:
-            turn_offset=0.035
+    # TODO added rotate robot to scan landmarks, need to change this logic out
+    def localise_rotate_robot(self, num_turns=4, wheel_rot_speed=0.4):
 
-        turn_time = (abs(turn_resolution)*baseline)/(2.0*scale*wheel_vel) + turn_offset
-        
+        print("Robot trying to localise itself..")
+        turning_angle = np.pi / 6       # 30 deg increments 
+
+        # perform rotations and update location with each turn
         for _ in range(num_turns):
-            lv, rv = self.pibot_control.set_velocity(self.default_rot_speeds)
-            turn_drive_meas = Drive(lv, rv, turn_time-turn_offset)
-            
-            time.sleep(0.5)
-            self.take_pic()
-            self.update_slam(turn_drive_meas)
+            self.robot_move_rotate(turning_angle, wheel_rot_speed=wheel_rot_speed)
+            print(f"Position after rotating: {self.get_robot_pose()}")
+            time.sleep(1.2)
 
-            # update pygame display
-            self.draw(canvas)
-            pygame.display.update()
-            self.waypoint_update()
+        # recover initial orientation prior to turning
+        self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
+        print(f"Position after rotating: {self.get_robot_pose()}")
 
-            print(f"Position rotate: {self.ekf.robot.state.squeeze().tolist()}")
+        return None
 
+
+    # NOTE: running purely on slam for now
+    def take_and_analyse_picture(self):
+        global aruco_img
+
+        global camera_matrix
+        global dist_coeffs
+        marker_pose = None
+        # aruco_id =[]
+
+        # self.img = self.take_pic()
+        measurements, aruco_img = self.aruco_sensor.detect_marker_positions(self.img)
+
+        # visualise
+        operate.draw(canvas)
+        pygame.display.update()
+        
+        # print(f"1_ids : {aruco_id}")
+
+        return measurements, aruco_img
+        # return landmarks, detector_output,aruco_corners
+        
 ########################### NOTE: KEYBOARD OPERATION DONE HERE ##############################
     
     # Keyboard control for Milestone 4 Level 2
@@ -780,7 +801,17 @@ class Operate:
                     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
                     lms.append(measure_lm)
                 self.ekf.add_landmarks_true(lms)   
+            
+            # TODO Load true map into ekf by pressing t
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
+                if args.map:
+                    self.ekf.load_true_map(args.map)
+                    self.notification = 'Loading true map...'
+                    self.command['load_true_map'] = True
+                else: 
+                    self.notification = "No true map found."
                 
+            # enable/disable object detection 
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                 self.command['run_obj_detector'] = True
                 
@@ -908,6 +939,8 @@ if __name__ == "__main__":
             canvas.blit(pibot_animate[counter%10//2], (x_, 565))
             pygame.display.update()
             counter += 2
+
+######################################## LOOKIE HERE ########################################
 
     operate = Operate(args)
     fruit_list, fruit_true_pos, aruco_true_pos = read_true_map(args.map)

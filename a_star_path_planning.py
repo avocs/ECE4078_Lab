@@ -40,6 +40,10 @@ In this case, Euclidean would be the best since we can move in any direction
 
 '''
 
+'''
+NOTE: would need a tolerancing code here 
+'''
+
 
 ## IMPORT THE REQUIRED LIBRARIES
 import math
@@ -75,9 +79,19 @@ def is_unblocked(grid, row, col):
 def is_destination(row, col, dest):
     return row == dest[0] and col == dest[1]
 
+def is_within_range(row, col, dest, threshold=0.35):
+    distance = calculate_h_value(row, col, dest)
+    return distance <= threshold
+
+
 # Calculate the heuristic value of a cell (Euclidean distance to destination)
 def calculate_h_value(row, col, dest):
     return ((row - dest[0]) ** 2 + (col - dest[1]) ** 2) ** 0.5
+
+def calculate_h_value_points(pt1, pt2):
+    x1, y1 = pt1
+    x2, y2 = pt2
+    return abs(x1-x2) + abs(y1-y2)
 
 # Trace the path from source to destination
 def trace_path(cell_details, dest):
@@ -191,21 +205,21 @@ def a_star_search(grid, src, dest):
 
                     path_coord = convert_grid_to_coord(path)
                     
-                    x_points = []
-                    y_points = []
-                    for i in range(len(path_coord)):
-                        x_points.append(path_coord[i][0])
-                        y_points.append(path_coord[i][1])
+                    # x_points = []
+                    # y_points = []
+                    # for i in range(len(path_coord)):
+                    #     x_points.append(path_coord[i][0])
+                    #     y_points.append(path_coord[i][1])
                     
-                    plt.plot(x_points, y_points, marker = 'o') 
-                    # space = [round(i*0.1, 2) for i in range(-16, 17, 1)]
-                    space = np.array([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])  
-                    plt.xticks(space); plt.yticks(space)
-                    for i, (x, y) in enumerate(zip(x_points, y_points), 1):
-                        plt.annotate(f'{i}', (x, y), textcoords="offset points", xytext=(0,5), ha='center')
-                    plt.grid()
+                    # plt.plot(x_points, y_points, marker = 'o') 
+                    # # space = [round(i*0.1, 2) for i in range(-16, 17, 1)]
+                    # space = np.array([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])  
+                    # plt.xticks(space); plt.yticks(space)
+                    # for i, (x, y) in enumerate(zip(x_points, y_points), 1):
+                    #     plt.annotate(f'{i}', (x, y), textcoords="offset points", xytext=(0,5), ha='center')
+                    # plt.grid()
                     
-                    print(f'Path found: {path_coord}')
+                    # print(f'Path found: {path_coord}')
                     found_dest = True
                     return path_coord
                 else:
@@ -229,7 +243,204 @@ def a_star_search(grid, src, dest):
     if not found_dest:
         print("Failed to find the destination cell")
 
+# Implement the A* search algorithm with tolerance // there was an attempt. 
+def a_star_search_tolerated(grid, src, dest):
 
+    global found_dest
+    # Check if the source and destination are valid
+    if not is_valid(src[0], src[1]) or not is_valid(dest[0], dest[1]):
+        print("Source or destination is invalid")
+        return
+
+    # Check if the source and destination are unblocked
+    if (not is_unblocked(grid, src[0], src[1])) or (not is_unblocked(grid, dest[0], dest[1])):
+        print("Source or the destination is blocked")
+        # print(f"Source: {src}, Dest: {dest}")
+        # print("src: ", is_unblocked(grid, src[0], src[1]))
+        # print("dest: ", is_unblocked(grid, dest[0], dest[1]))
+        # print(f"Source blocked: {grid[src[0]][src[1]]}, Dest blocked: {grid[dest[0]][dest[1]]}")
+        return
+
+    # Check if we are already at the destination
+    if is_destination(src[0], src[1], dest):
+        print("We are already at the destination")
+        return
+
+    # Initialize the closed list (visited cells)
+    closed_list = [[False for _ in range(COL)] for _ in range(ROW)]
+    # Initialize the details of each cell
+    cell_details = [[Cell() for _ in range(COL)] for _ in range(ROW)]
+
+    # Initialize the start cell details
+    i = src[0]
+    j = src[1]
+    cell_details[i][j].f = 0
+    cell_details[i][j].g = 0
+    cell_details[i][j].h = 0
+    cell_details[i][j].parent_i = i
+    cell_details[i][j].parent_j = j
+
+    # Initialize the open list (cells to be visited) with the start cell
+    open_list = []
+    heapq.heappush(open_list, (0.0, i, j))
+
+    # Initialize the flag for whether destination is found
+    found_dest = False
+
+    # Main loop of A* search algorithm
+    while len(open_list) > 0:
+        # Pop the cell with the smallest f value from the open list
+        p = heapq.heappop(open_list)
+
+        # Mark the cell as visited
+        i = p[1]
+        j = p[2]
+        closed_list[i][j] = True
+
+        # For each direction, check the successors
+        directions = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+        # valid_successors = []
+
+        for dir in directions:
+            new_i = i + dir[0]
+            new_j = j + dir[1]
+
+            # If the successor is valid, unblocked, and not visited
+            if is_valid(new_i, new_j) and is_unblocked(grid, new_i, new_j) and not closed_list[new_i][new_j]:
+                # If the successor is the destination or is within range of the destination
+                if is_destination(new_i, new_j, dest) or is_within_range(new_i, new_j, dest):
+                    # Set the parent of the destination cell
+                    cell_details[new_i][new_j].parent_i = i
+                    cell_details[new_i][new_j].parent_j = j
+                    if printingFlag:
+                        print("The robot is within stopping distance of the destination.")
+                    # Trace and print the path from source to destination
+                    path = trace_path(cell_details, dest)
+
+                    # Path plotting display
+                    path_coord = convert_grid_to_coord(path)
+                    
+                    # x_points = []
+                    # y_points = []
+                    # for i in range(len(path_coord)):
+                    #     x_points.append(path_coord[i][0])
+                    #     y_points.append(path_coord[i][1])
+                    
+                    # plt.plot(x_points, y_points, marker = 'o') 
+                    # # space = [round(i*0.1, 2) for i in range(-16, 17, 1)]
+                    # space = np.array([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])  
+                    # plt.xticks(space); plt.yticks(space)
+                    # for i, (x, y) in enumerate(zip(x_points, y_points), 1):
+                    #     plt.annotate(f'{i}', (x, y), textcoords="offset points", xytext=(0,5), ha='center')
+                    # plt.grid()
+                    
+                    # print(f'Path found: {path_coord}')
+                    found_dest = True
+                    return path_coord
+                else:
+
+                    # If the successor is not the destination, calculate the new f, g, and h values
+                    g_new = cell_details[i][j].g + 1.0
+                    h_new = calculate_h_value(new_i, new_j, dest)
+                    f_new = g_new + h_new
+
+                    # If the cell is not in the open list or the new f value is smaller
+                    if cell_details[new_i][new_j].f == float('inf') or cell_details[new_i][new_j].f > f_new:
+                        # Add the cell to the open list
+                        heapq.heappush(open_list, (f_new, new_i, new_j))
+                        # Update the cell details
+                        cell_details[new_i][new_j].f = f_new
+                        cell_details[new_i][new_j].g = g_new
+                        cell_details[new_i][new_j].h = h_new
+                        cell_details[new_i][new_j].parent_i = i
+                        cell_details[new_i][new_j].parent_j = j
+
+    # If the destination is not found after visiting all cells
+    if not found_dest:
+        print("Failed to find the destination cell")
+
+# ##### TODO sandra changed here im gonna cry #####
+# def is_within_tolerance(row, col, dest, tolerance):
+#     distance_to_goal = math.sqrt((row - dest[0]) ** 2 + (col - dest[1]) ** 2)
+#     return distance_to_goal <= tolerance
+
+# def calculate_turning_angle(i, j, new_i, new_j):
+#     # Calculate the turning angle between the current and next position (can be refined)
+#     delta_x = new_i - i
+#     delta_y = new_j - j
+#     angle = math.atan2(delta_y, delta_x)  # Angle in radians
+#     return abs(angle)  # Always positive for radius check
+
+# def adjust_destination_for_camera():
+#     global camera_offset, goal_stop_dist, clearance_radius
+#     chassis_width = 15e-2
+#     chassis_length = 25e-2
+#     camera_offset = 15e-2
+#     goal_stop_dist = 0.35
+#     clearance_radius = 0.1 
+
+#     # NOTE changed here 
+#     baseline = 12.45e-2     # baseline hardcoded 
+
+# def adjust_destination_for_camera(dest, stop_distance, camera_offset, theta):
+#     """
+#     Adjust the destination based on the stopping distance and the robot's orientation.
+    
+#     Args:
+#         dest (tuple): The target destination (x, y).
+#         stop_distance (float): The desired distance from the camera to the target.
+#         camera_offset (float): The distance from the camera to the robot's center.
+#         theta (float): The orientation of the robot in radians (angle between the robot's forward direction and the target).
+        
+#     Returns:
+#         tuple: The adjusted destination for the robot's center.
+#     """
+#     # Calculate the x and y offsets due to the camera's position relative to the robot's center
+#     x_offset = camera_offset * math.cos(theta)
+#     y_offset = camera_offset * math.sin(theta)
+    
+#     # Calculate the adjusted destination based on the stop distance and orientation
+#     adjusted_x = dest[0] - (stop_distance - camera_offset) * math.cos(theta) - x_offset
+#     adjusted_y = dest[1] - (stop_distance - camera_offset) * math.sin(theta) - y_offset
+    
+#     return (adjusted_x, adjusted_y)
+    
+
+# intention is to cut down on number of waypoints required to travel 
+def simplify_path(all_waypoints, threshold=0.3):
+    new_path = []
+    new_all_waypoints = []
+    print(all_waypoints)
+
+    for j in range(len(all_waypoints)-1):
+        # print(all_waypoints)
+        if j == 0:  # add the first waypoint in the list 
+            new_path.append(all_waypoints[j])
+        else: 
+            new_path.append(all_waypoints[j])
+            
+            # check for same xcoord
+            if (new_path[-1][0] == new_path[-2][0]):
+                if round(abs(new_path[-1][1] - new_path[-2][1]), 2) < threshold:
+                    if all_waypoints[j+1][0] == new_path[-1][0]:
+                        new_path.pop()
+            
+            # check for same ycoord
+            elif (new_path[-1][1] == new_path[-2][1]):
+                if round(abs(new_path[-1][1] - new_path[-2][1]), 2) < threshold:
+                    if all_waypoints[j+1][1] == new_path[-1][1]:
+                        new_path.pop()
+            
+            # check same diagonal/direction
+            elif (round(all_waypoints[j+1][0] - all_waypoints[j][0],2) == round(all_waypoints[j][0] - all_waypoints[j-1][0],2) and round(all_waypoints[j+1][1] - all_waypoints[j][1],2) == round(all_waypoints[j][1] - all_waypoints[j-1][1],2)):
+                if calculate_h_value_points(new_path[-1],new_path[-2]) < threshold:
+                    new_path.pop()
+    # add in final waypoint
+    new_path.append(all_waypoints[-1])
+
+
+    return new_path 
+ 
 
 def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
 
@@ -286,6 +497,24 @@ def convert_grid_to_coord(path):
     return path_coord
 
 
+def plot_waypoints(waypoints):
+
+    x_points = []
+    y_points = []
+    for i in range(len(waypoints)):
+        x_points.append(waypoints[i][0])
+        y_points.append(waypoints[i][1])
+    
+    plt.plot(x_points, y_points, marker = 'o') 
+    # space = [round(i*0.1, 2) for i in range(-16, 17, 1)]
+    space = np.array([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])  
+    plt.xticks(space); plt.yticks(space)
+    for i, (x, y) in enumerate(zip(x_points, y_points), 1):
+        plt.annotate(f'{i}', (x, y), textcoords="offset points", xytext=(0,5), ha='center')
+    plt.grid()
+
+
+
 def main():
     fruits_list=  ['redapple', 'greenapple', 'orange', 'mango', 'capsicum']
     fruits_true_pos=  [[-0.4,  0  ],
@@ -306,6 +535,7 @@ def main():
                       [ 1.6, -0.4]]
     
     search_list =   ['redapple', 'greenapple', 'orange']
+    # search_list =   ['greenapple']
     search_index = []
 
 
@@ -334,12 +564,17 @@ def main():
             else:
                 dest[j] -= 0.1
             dest[j] = round(dest[j], 2)
-        # print(dest)
+        print(dest)
         grid_dest = convert_coord_to_grid(dest)
 
         grid = modify_obstacles(aruco_true_pos, search_index[i], fruits_true_pos)
         
         waypoints = a_star_search(grid, grid_src, grid_dest)
+        # print(waypoints)
+        plot_waypoints(waypoints)
+        new_waypoints = simplify_path(waypoints)
+        # plot_waypoints(new_waypoints)
+        # waypoints = a_star_search_tolerated(grid, grid_src, grid_dest)
 
         src = dest
     
@@ -366,7 +601,7 @@ def main():
     for i, (x, y) in enumerate(zip(x_fruits, y_fruits), 1):
         plt.annotate(f'{i+10}', (x, y), textcoords="offset points", xytext=(0,-10), ha='center')
     
-
+    plt.grid(True)
     plt.show()
     
 

@@ -15,7 +15,8 @@ def calibrateScale():
     # We repeat the procedures multiple times (can use different raw speed), so that we can obtain the average value for a more robust measurement.
 
     # Feel free to change the range
-    wheel_speed_range = [[0.6, 0.6], [0.7, 0.7], [0.8, 0.8]] # Raw Speed
+    # wheel_speed_range = [[0.5, 0.5], [0.6, 0.6], [0.7, 0.7]] # Raw Speed
+    wheel_speed_range = [[0.5, 0.5]] # Raw Speed
     # wheel_speed_range = [[0.6, 0.6], [0.7, 0.7], [0.8, 0.8]] # Raw Speed
     delta_times = []
 

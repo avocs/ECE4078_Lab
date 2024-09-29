@@ -7,6 +7,7 @@ class Robot:
         # Positive x-axis is the direction the robot is facing, positive y-axis 90 degree anticlockwise of positive x-axis
         # For orientation, it is in radian. Positive when turning anticlockwise (left)
         self.state = np.zeros((3,1))
+        self.prev_state = np.zeros((3,1))
         
         # Wheel parameters
         self.baseline = baseline  # The distance between the left and right wheels
@@ -23,6 +24,9 @@ class Robot:
 
         # Compute the linear and angular velocity
         linear_velocity, angular_velocity = self.convert_wheel_speeds(drive_meas.left_speed, drive_meas.right_speed)
+
+        # Store prev state before assigning new state
+        self.prev_state = self.state
 
         # Apply the velocities
         dt = drive_meas.dt
@@ -65,7 +69,10 @@ class Robot:
             # lm_position[1,:] -= 0.2
 
             measurements_hat.append(lm_position)
-            print(f'lmpos: {lm_position}, state: {lm_state}, rbtstate: {self.state}\n')
+            print("\tlmpos: ", " ".join(map(str, [item[0] for item in lm_position])))
+            print("\tstate: ", " ".join(map(str, [item[0] for item in lm_state])))
+            print("\trbtstate: ", " ".join(map(str, [item[0] for item in self.state])))
+            # print(f'lmpos: {lm_position}, state: {lm_state}, rbtstate: {self.state}\n')
             # print('state', lm_state)
 
         # Stack the measurements in a 2xn structure.

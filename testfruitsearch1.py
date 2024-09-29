@@ -240,12 +240,15 @@ def robot_move_rotate(turning_angle=0, wheel_lin_speed=0.7, wheel_rot_speed=0.4)
     '''
     global robot_pose, baseline
     full_rotation_time = 3.0       # TODO whatever this is 
-    wheel_rot_speed = 0.4 
+    # wheel_rot_speed = 0.4 
 
     ticks_per_revolution = 20
     wheel_diameter = 66e-3            # yoinked from cytron
 
-
+    if abs(turning_angle) > 0:
+        tick_offset = 8
+    else: 
+        tick_offset = 0
 
     # clamp angle between -180 to 180 deg 
     print(f'preturn {turning_angle}')
@@ -263,15 +266,17 @@ def robot_move_rotate(turning_angle=0, wheel_lin_speed=0.7, wheel_rot_speed=0.4)
     #  If the robot pivoted 360°, the distance traveled by each wheel 
     # would be equal to the circumference of this pivot circle
     pivot_circum = np.pi * baseline 
-    distance_per_wheel = (turning_angle / (2*np.pi)) * pivot_circum
+    distance_per_wheel = abs(turning_angle / (2*np.pi)) * pivot_circum
 
     # distance each wheel must travel
     # distance_per_wheel = (baseline/2) * turning_angle
     turning_revolutions = distance_per_wheel / wheel_circum
-    num_ticks = turning_revolutions * ticks_per_revolution
+    num_ticks = round(turning_revolutions * ticks_per_revolution) + tick_offset
     # manual override
-    print(f'turning for {num_ticks} ticks for {turning_angle_deg}')
+    print(f'turning for {num_ticks} ticks to {turning_angle_deg}')
     print(f"turning for {turning_time}s to {turning_angle_deg}")
+
+
 
 
     # -- direction of wheels, depending on sign
@@ -319,7 +324,7 @@ def robot_move_rotate(turning_angle=0, wheel_lin_speed=0.7, wheel_rot_speed=0.4)
     return None 
 
 
-def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.7, wheel_rot_speed=0.4):
+def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.5, wheel_rot_speed=0.4):
     '''
     this function makes the robot drive straight a certain time automatically 
     '''
@@ -328,10 +333,15 @@ def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.7, wheel_rot_speed=0.
     ticks_per_revolution = 20
     wheel_diameter = 66e-3            # yoinked from cytron
 
+    if dist_to_waypt > 0:
+        tick_offset = 16
+    else: 
+        tick_offset = 0
+
     # wheel circumference
     wheel_circum = np.pi * wheel_diameter
     drive_revolutions = dist_to_waypt / wheel_circum
-    num_ticks = drive_revolutions * ticks_per_revolution
+    num_ticks = drive_revolutions * ticks_per_revolution + tick_offset
 
     # time to drive straight for 
     drive_time = dist_to_waypt / (scale * wheel_lin_speed)
@@ -361,7 +371,7 @@ def robot_move_straight(dist_to_waypt=0, wheel_lin_speed=0.7, wheel_rot_speed=0.
         print(f"curr_ticks {curr_ticks}")
 
         ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-        ticks_travelled_right = curr_ticks[1] - initial_ticks[1]\
+        ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
         
         if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
             break
@@ -389,19 +399,19 @@ def drive_to_point(waypoint):
     print(f'curr orientation {robot_pose[2]}, angle_towaypt {angle_to_waypt}, turning_angle{turning_angle}')
     robot_move_rotate(turning_angle)
     print(f"Robot Pose: {robot_pose}\n")
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     # 2. Robot drives straight towards waypt
     # ===============================================
     dist_to_waypt = math.hypot(x_dist_to_waypt, y_dist_to_waypt)
     robot_move_straight(dist_to_waypt)
     print(f"Robot Pose: {robot_pose}\n")
-    time.sleep(0.1)
+    time.sleep(0.2)
 
     # 3. Robot reorients itself to world y-axis
     # =============================================
     robot_move_rotate(-turning_angle)
-    time.sleep(0.1)
+    time.sleep(0.2)
     # 4. arrived at waypoint 
     # =================================================
     print("Arrived at [{}, {}]".format(waypoint[0], waypoint[1]))
@@ -414,7 +424,7 @@ def get_robot_pose(drive_meas):
     # TODO: replace with your codes to estimate the pose of the robot
     # We STRONGLY RECOMMEND you to use your SLAM code from M2 here
 
-    # this is uhhhh inaccurate 
+    # this is uhhhh inaccurate, currently hardcoded to just take robot pose right away
     # obtain angle with respect to x-axis
     # robot_pose[2] = np.arctan2(waypoint[1]-robot_pose[1],waypoint[0]-robot_pose[0])
     # robot_pose[2] = (robot_pose[2] + 2*np.pi) if (robot_pose[2] < 0) else robot_pose[2] # limit from 0 to 360 degree

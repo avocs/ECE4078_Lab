@@ -34,15 +34,18 @@ class EKF:
         
     def reset(self):
         self.robot.state = np.zeros((3, 1))
+        
+        # NOTE ADDED 
+        self.robot.prev_state = np.zeros((3,1))
 
-        #TODO
-        # self.robot.state[1,0] += 0.2/100.0
-        if self.val_offset_enabled:
-            y_robot_value = self.robot.state[1,0]
-            if y_robot_value < 0:
-                self.robot.state[1,0] -= self.val_offset/100.0
-            else:
-                self.robot.state[1,0] += self.val_offset/100.0
+        # #TODO
+        # # self.robot.state[1,0] += 0.2/100.0
+        # if self.val_offset_enabled:
+        #     y_robot_value = self.robot.state[1,0]
+        #     if y_robot_value < 0:
+        #         self.robot.state[1,0] -= self.val_offset/100.0
+        #     else:
+        #         self.robot.state[1,0] += self.val_offset/100.0
 
         self.markers = np.zeros((2,0))
         self.taglist = []
@@ -91,6 +94,7 @@ class EKF:
             (self.robot.state, np.reshape(self.markers, (-1,1), order='F')), axis=0)
         return state
     
+    # time to mod this guy 
     def set_state_vector(self, state):
         self.robot.state = state[0:3,:]
         self.markers = np.reshape(state[3:,:], (2,-1), order='F')
@@ -146,35 +150,27 @@ class EKF:
         Q[0:3,0:3] += 0.01*np.eye(3)                # Motion model's noise covariance matrix      
 
         # TODO: add your codes here to compute the predicted x
+
+        self.P = F @ self.P @ F.T + Q
         # 1. Predict state by calling the drive function
-        # self.robot.drive(drive_meas)
+        self.robot.drive(drive_meas)
 
         # Get the current state
         # x_pred = self.get_state_vector()
-        x_pred = F @ x
+        # x_pred = F @ x
 
 
-        # TODO
-        if self.val_offset_enabled:
-            y_robot_value = x_pred[1,0]
-            if y_robot_value < 0:
-                x_pred[1,0] -= self.val_offset/100.0
-            else:
-                x_pred[1,0] += self.val_offset/100.0
-        # x_pred[1,0] += 0.2/100.0
-        
-
-        # 2. Derivate Drive which is A
-        # 3. Get covariance which is Q
-        # 4. Update the covariance matrix
-        P = self.P
-        P_pred = F @ P @ F.T + Q                         # (bar sigma k) = A * (sigma k-1) * (A transpose) + (sigma Q)
+        # # 2. Derivate Drive which is A
+        # # 3. Get covariance which is Q
+        # # 4. Update the covariance matrix
+        # P = self.P
+        # P_pred = F @ P @ F.T + Q                         # (bar sigma k) = A * (sigma k-1) * (A transpose) + (sigma Q)
                
-        # Update the P (Covariance Matrix)
-        self.P = P_pred                                  # Bar Sigma k in lecture notes is P
+        # # Update the P (Covariance Matrix)
+        # self.P = P_pred                                  # Bar Sigma k in lecture notes is P
 
         # Update the predicted state
-        self.set_state_vector(x_pred)    
+        # self.set_state_vector(x_pred)    
         # self.set_state_vector(F @ x)
 
 
@@ -220,6 +216,7 @@ class EKF:
         # bar sigma k = P               lecture notes = code
         # C = H
         self.P = (np.eye(len(x)) - K @ H) @ self.P
+        
 
     def state_transition(self, drive_meas):
         n = self.number_landmarks()*2 + 3

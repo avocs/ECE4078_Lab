@@ -34,8 +34,8 @@ class Operate:
                         'load_true_map': False}
                         
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
-        # self.pibot_control.set_pid(use_pid=0, kp=0.005, ki=0, kd=0.0005)
-        self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)
+        self.pibot_control.set_pid(use_pid=0, kp=0.005, ki=0, kd=0.0005)
+        # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)
         
         # Create a folder "lab_output" that stores the results of the lab
@@ -296,11 +296,11 @@ class Operate:
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
                 # pass # TODO
-                self.command['wheel_speed'] = [-0.5, 0.4]
+                self.command['wheel_speed'] = [-0.4, 0.4]
             # drive right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                 # pass # TODO
-                self.command['wheel_speed'] = [0.4, -0.5]
+                self.command['wheel_speed'] = [0.4, -0.4]
             # stop
             elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 self.command['wheel_speed'] = [0, 0]
