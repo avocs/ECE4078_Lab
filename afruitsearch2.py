@@ -67,7 +67,8 @@ class Operate:
                         
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=0, kp=0.1, ki=0, kd=0.0005)  
+        # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
+        self.pibot_control.set_pid(use_pid=1, kp=0.0001, ki=0, kd=0.001)  
 
         # Initialise SLAM parameters (M2)
         self.ekf = self.init_ekf(args.calib_dir, args.ip)
@@ -153,6 +154,7 @@ class Operate:
                 self.command['load_true_map'] = False
             else: 
                 if len(measurements) >= 2:
+                    print('Updating SLAM')
                     self.ekf.add_landmarks(measurements)
                     self.ekf.update(measurements)
                     self.notification = 'Updating SLAM'
@@ -459,6 +461,9 @@ class Operate:
                     self.waypoints_list[0].pop(0)
                     print(f"New waypoints list: {self.waypoints_list}")
 
+                    # localise self at every sub-waypoint except for first and last 
+                    # if self.curr_waypoint_count > 1 and self.waypoints_list[0]:
+                    #     self.localise_rotate_robot(num_turns=6, turning_angle=(np.pi/6))
                     
                     # if the waypoint is the last one in its list, means fruit is found
                     if not self.waypoints_list[0]:
@@ -514,7 +519,7 @@ class Operate:
         # ===============================================
         dist_to_waypt = math.hypot(x_dist_to_waypt, y_dist_to_waypt)
         print(f'--- dist to waypoint: {x_dist_to_waypt}, {y_dist_to_waypt}')
-        self.take_pic()
+        # self.take_pic()
         straight_drive_meas = self.robot_move_straight(dist_to_waypt)
         
         time.sleep(0.5)
@@ -531,20 +536,24 @@ class Operate:
     
    ######################################################### 
     # TODO nyoom nyoom
-    def robot_move_rotate(self, turning_angle=0, wheel_lin_speed=0.5, wheel_rot_speed=0.4):
+    def robot_move_rotate(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.4):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
 
         '''
+        wheel_rot_speed_big = 0.5
+        wheel_rot_speed_small = 0.6
         # global robot_pose
-        full_rotation_time = 3.0       # TODO whatever this is 
+        full_rotation_time = 1.8       # TODO whatever this is 
 
         ticks_per_revolution = 20
-        wheel_diameter = 66e-3            # yoinked from cytron
+        wheel_diameter = 68e-3            # yoinked from cytron
         baseline = self.baseline
 
+        
+
         if abs(turning_angle) > 0:
-            tick_offset = 8
+            tick_offset = 0
         else: 
             tick_offset = 0
 
@@ -554,32 +563,44 @@ class Operate:
         turning_angle = turning_angle - 2*np.pi if turning_angle > np.pi else turning_angle
         turning_angle_deg = turning_angle * 180 / np.pi
 
+
+        if abs(turning_angle) >= (np.pi/4):
+            wheel_rot_speed = wheel_rot_speed_big
+        else:
+            wheel_rot_speed = wheel_rot_speed_small
+
         # move the robot to perform rotation 
         # -- time to turn according to ratio 
-        turning_time = abs(turning_angle) * full_rotation_time / (2 * np.pi) 
+        # turning_time = abs(turning_angle) * full_rotation_time / (2 * np.pi) 
+        # turning_time = abs
 
         # wheel circumference
         wheel_circum = np.pi * wheel_diameter
         #  If the robot pivoted 360°, the distance traveled by each wheel 
         # would be equal to the circumference of this pivot circle
         pivot_circum = np.pi * baseline 
-        distance_per_wheel = (turning_angle / (2*np.pi)) * pivot_circum
+        distance_per_wheel = abs(turning_angle / (2*np.pi)) * pivot_circum
+
+        turning_time = distance_per_wheel/(self.scale * wheel_rot_speed)
 
         # distance each wheel must travel
         # distance_per_wheel = (baseline/2) * turning_angle
         turning_revolutions = distance_per_wheel / wheel_circum
-        num_ticks = turning_revolutions * ticks_per_revolution + tick_offset
+        if turn_ticks != 0:
+            num_ticks = turn_ticks
+        else:
+            num_ticks = np.round(abs((turning_revolutions * ticks_per_revolution) + tick_offset))
+        
         # manual override
         print(f'Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
         # print(f"turning for {turning_time}s to {turning_angle_deg}")
-
 
         # -- direction of wheels, depending on sign
         if turning_time != 0: # if the car is not going straight/has to turn
             if (turning_angle) > 0: # turn left 
                 lv, rv = [-wheel_rot_speed, wheel_rot_speed]
-            elif turning_angle < 0:
-                lv, rv = [wheel_rot_speed, -wheel_rot_speed] 
+            elif turning_angle < 0: # turn right
+                lv, rv = [wheel_rot_speed + 0.1, -wheel_rot_speed] 
         else: 
             lv, rv = [0.0, 0.0]
         
@@ -588,18 +609,24 @@ class Operate:
         # alt nyoom 
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
-        self.pibot_control.set_velocity(turn_speeds)
 
-        while True: 
-            curr_ticks = self.pibot_control.get_counter_values()
-            ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-            ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            # print(f"curr_ticks {curr_ticks}")
+        if turning_angle != 0:
+            # NOTE: sandra tried moving this line into turn speeds
+            self.pibot_control.set_velocity(turn_speeds)
 
-            if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
-                break
-        self.pibot_control.set_velocity([0,0])
-        
+            while True: 
+                self.take_pic()
+                self.pibot_control.set_velocity(turn_speeds)
+                curr_ticks = self.pibot_control.get_counter_values()
+                ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
+                ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
+                # print(f"curr_ticks {curr_ticks}")
+
+                if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
+                    break
+                self.draw(canvas)
+                pygame.display.update()
+            self.pibot_control.set_velocity([0,0])
 
         # update own location only after finished driving
         self.take_pic()
@@ -615,22 +642,22 @@ class Operate:
 #####################################################
 
     # TODO nyoom nyoom 
-    def robot_move_straight(self, dist_to_waypt=0, wheel_lin_speed=0.5, wheel_rot_speed=0.4):
+    def robot_move_straight(self, dist_to_waypt=0, wheel_lin_speed=0.6, wheel_rot_speed=0.4):
         '''
         this function makes the robot drive straight a certain time automatically 
         '''
         ticks_per_revolution = 20
-        wheel_diameter = 66e-3            # yoinked from cytron
+        wheel_diameter = 68e-3            # yoinked from cytron
 
         if dist_to_waypt > 0:
-            tick_offset = 16
+            tick_offset = 17
         else: 
             tick_offset = 0
 
         # wheel circumference
         wheel_circum = np.pi * wheel_diameter
         drive_revolutions = dist_to_waypt / wheel_circum
-        num_ticks = drive_revolutions * ticks_per_revolution + tick_offset
+        num_ticks = np.round(drive_revolutions * ticks_per_revolution + tick_offset)
 
         # time to drive straight for 
         drive_time = dist_to_waypt / (self.scale * wheel_lin_speed)
@@ -644,15 +671,19 @@ class Operate:
         # alt nyoom 
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
-        self.pibot_control.set_velocity(drive_speeds)
+        # NOTE : sandra tried moving the next line into the while loop
+        # self.pibot_control.set_velocity(drive_speeds)
 
         while True: 
+            self.take_pic()
+            self.pibot_control.set_velocity(drive_speeds)
             curr_ticks = self.pibot_control.get_counter_values()
             # print(f"curr_ticks {curr_ticks}")
 
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-            ticks_travelled_right = curr_ticks[1] - initial_ticks[1]\
-            
+            ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
+            self.draw(canvas)
+            pygame.display.update()
             if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
                 break
         
@@ -667,6 +698,7 @@ class Operate:
         # update display 
         self.draw(canvas)
         pygame.display.update()
+
         return straight_drive_meas
 #########################################################
 
@@ -705,16 +737,16 @@ class Operate:
             pygame.display.update()
         
     # TODO added rotate robot to scan landmarks, need to change this logic out
-    def localise_rotate_robot(self, num_turns=4, wheel_rot_speed=0.4):
+    def localise_rotate_robot(self, num_turns=4, turning_angle=(np.pi/6), wheel_rot_speed=0.4):
 
         print("Robot trying to localise itself..")
-        turning_angle = np.pi / 6       # 30 deg increments 
+        # turning_angle = np.pi / 6       # 30 deg increments 
 
         # perform rotations and update location with each turn
         for _ in range(num_turns):
             self.robot_move_rotate(turning_angle, wheel_rot_speed=wheel_rot_speed)
             print(f"Position after rotating: {self.get_robot_pose()}")
-            time.sleep(1.2)
+            time.sleep(2)
 
         # recover initial orientation prior to turning
         self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)

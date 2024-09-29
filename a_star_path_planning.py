@@ -407,7 +407,7 @@ def a_star_search_tolerated(grid, src, dest):
     
 
 # intention is to cut down on number of waypoints required to travel 
-def simplify_path(all_waypoints, threshold=0.3):
+def simplify_path(all_waypoints, threshold=0.4):
     new_path = []
     new_all_waypoints = []
     print(all_waypoints)

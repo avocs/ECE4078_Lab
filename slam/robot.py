@@ -31,13 +31,21 @@ class Robot:
         # Apply the velocities
         dt = drive_meas.dt
         if angular_velocity == 0:
+            
             self.state[0] += np.cos(self.state[2]) * linear_velocity * dt
             self.state[1] += np.sin(self.state[2]) * linear_velocity * dt
+            # print(f"state {self.state}")
         else:
             th = self.state[2]
             self.state[0] += linear_velocity / angular_velocity * (np.sin(th+dt*angular_velocity) - np.sin(th))
             self.state[1] += -linear_velocity / angular_velocity * (np.cos(th+dt*angular_velocity) - np.cos(th))
             self.state[2] += dt*angular_velocity
+        
+        # clamp angle from -pi to pi
+        self.state[2] = self.state[2] % (2*np.pi)
+        self.state[2] = self.state[2] - 2*np.pi if self.state[2] > np.pi else self.state[2]
+
+
 
     def convert_wheel_speeds(self, left_speed, right_speed):
         # Convert to m/s
