@@ -149,7 +149,7 @@ class Operate:
         #     self.request_recover_robot = False
         if self.ekf_on:
             self.ekf.predict(drive_meas)
-            
+             
             # M3, disable updates to aruco markers if true map is loaded
             if self.command['load_true_map']:
                 self.notification = 'SLAM locates robot pose'
@@ -552,18 +552,19 @@ class Operate:
         wheel_diameter = 68e-3            # yoinked from cytron
         baseline = self.baseline
 
-        
-        if abs(turning_angle * 180 / np.pi()) > 45:
-            tick_offset = 8
-        else: 
-            tick_offset = 0
-
         # clamp angle between -180 to 180 deg 
         turning_angle = turning_angle % (2*np.pi) # shortcut to while loop deducting 2pi 
         # if the angle is more than 180 deg, make this a negative angle instead 
         turning_angle = turning_angle - 2*np.pi if turning_angle > np.pi else turning_angle
         turning_angle_deg = turning_angle * 180 / np.pi
 
+        abs_turning_angle_deg = abs(turning_angle_deg)
+        if abs_turning_angle_deg > 45:
+            tick_offset = 8
+        elif abs_turning_angle_deg > 30:
+            tick_offset = 5
+        else: 
+            tick_offset = 0
 
         if abs(turning_angle) >= (np.pi/4):
             wheel_rot_speed = wheel_rot_speed_big
@@ -571,9 +572,6 @@ class Operate:
             wheel_rot_speed = wheel_rot_speed_small
 
         # move the robot to perform rotation 
-        # -- time to turn according to ratio 
-        # turning_time = abs(turning_angle) * full_rotation_time / (2 * np.pi) 
-        # turning_time = abs
 
         # wheel circumference
         wheel_circum = np.pi * wheel_diameter
@@ -597,7 +595,7 @@ class Operate:
         # print(f"turning for {turning_time}s to {turning_angle_deg}")
 
         # -- direction of wheels, depending on sign
-        if turning_time != 0: # if the car is not going straight/has to turn
+        if num_ticks != 0: # if the car is not going straight/has to turn
             if (turning_angle) > 0: # turn left 
                 lv, rv = [-wheel_rot_speed, wheel_rot_speed]
             elif turning_angle < 0: # turn right
@@ -632,9 +630,11 @@ class Operate:
         # update own location only after finished driving
         time.sleep(0.5)
         self.take_pic()
-        turn_drive_meas = Drive(0.9*lv, 0.9*rv, turning_time)
+        turn_drive_meas = Drive(1*lv, 1*rv, turning_time)
         print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
         self.update_slam(turn_drive_meas)
+        turn_drive_meas = Drive(0.9*lv, 0.9*rv, turning_time)
+        # self.update_slam(turn_drive_meas)
 
         # update display 
         self.draw(canvas)
@@ -740,16 +740,20 @@ class Operate:
             pygame.display.update()
         
     # TODO added rotate robot to scan landmarks, need to change this logic out
-    def localise_rotate_robot(self, num_turns=4, turning_angle=(np.pi/6), wheel_rot_speed=0.4):
+    def localise_rotate_robot(self, num_turns=0, turning_angle=(np.pi/6), wheel_rot_speed=0.5):
 
         print("Robot trying to localise itself..")
         # turning_angle = np.pi / 6       # 30 deg increments 
+
+
+
+
 
         # perform rotations and update location with each turn
         for _ in range(num_turns):
             self.robot_move_rotate(turning_angle, wheel_rot_speed=wheel_rot_speed)
             print(f"Position after rotating: {self.get_robot_pose()}")
-            time.sleep(2)
+            time.sleep(1)
 
         # recover initial orientation prior to turning
         self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
