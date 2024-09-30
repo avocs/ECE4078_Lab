@@ -91,7 +91,9 @@ def calculate_h_value(row, col, dest):
 def calculate_h_value_points(pt1, pt2):
     x1, y1 = pt1
     x2, y2 = pt2
-    return abs(x1-x2) + abs(y1-y2)
+    return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+
+    # return abs(x1-x2) + abs(y1-y2)
 
 # Trace the path from source to destination
 def trace_path(cell_details, dest):
@@ -407,7 +409,7 @@ def a_star_search_tolerated(grid, src, dest):
     
 
 # intention is to cut down on number of waypoints required to travel 
-def simplify_path(all_waypoints, threshold=0.4):
+def simplify_path(all_waypoints, threshold=0.6):
     new_path = []
     new_all_waypoints = []
     print(all_waypoints)
@@ -435,6 +437,7 @@ def simplify_path(all_waypoints, threshold=0.4):
             elif (round(all_waypoints[j+1][0] - all_waypoints[j][0],2) == round(all_waypoints[j][0] - all_waypoints[j-1][0],2) and round(all_waypoints[j+1][1] - all_waypoints[j][1],2) == round(all_waypoints[j][1] - all_waypoints[j-1][1],2)):
                 if calculate_h_value_points(new_path[-1],new_path[-2]) < threshold:
                     new_path.pop()
+    
     # add in final waypoint
     new_path.append(all_waypoints[-1])
 

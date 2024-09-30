@@ -156,7 +156,7 @@ class Operate:
                 self.notification = 'SLAM locates robot pose'
                 self.command['load_true_map'] = False
             else: 
-                if self.update_slam_flag  and len(measurements) >= 3:
+                if self.update_slam_flag  and len(measurements) >= 2:
                     print('Updating SLAM')
                     self.ekf.add_landmarks(measurements)
                     self.ekf.update(measurements)
@@ -206,7 +206,7 @@ class Operate:
             self.obj_detector_pred, self.prediction_img = self.obj_detector.detect_single_image(self.img)
             str_preds = [str(pred) for pred in self.obj_detector_pred]
             self.fin_prediction_img = cv2.cvtColor(self.prediction_img, cv2.COLOR_RGB2BGR)
-            # self.command['run_obj_detector'] = False
+            self.command['run_obj_detector'] = False
             self.obj_detector_output = (self.obj_detector_pred, self.ekf.robot.state.tolist())
             self.notification = f'{len(np.unique(str_preds))} object type(s) detected'
 
@@ -467,11 +467,12 @@ class Operate:
                     # localise self at every sub-waypoint except for first and last at that point
                     if self.curr_waypoint_count > 1 and self.waypoints_list[0]:
                         self.update_slam_flag = True
-                        self.localise_rotate_robot(num_turns=6, turning_angle=(np.pi/6))
+                        self.localise_rotate_robot()
                         self.update_slam_flag = False
                     # if the waypoint is the last one in its list, means fruit is found
                     if not self.waypoints_list[0]:
                         self.waypoints_list.pop(0)
+                        self.curr_waypoint_count = 0
                         print("Fruit reached, robot sleeps for 3 seconds")
                         time.sleep(3)
 
@@ -507,7 +508,7 @@ class Operate:
         turning_angle = angle_to_waypt - robot_pose[2]         # compute minimum turning angle to waypoint
         
 
-        print(f'--- curr orientation {robot_pose[2]}, angle_towaypt {angle_to_waypt}, turning_angle{turning_angle}')
+        # print(f' curr orientation {robot_pose[2]}, angle_towaypt {angle_to_waypt}, turning_angle {turning_angle}')
         turn_drive_meas = self.robot_move_rotate(turning_angle)
 
         time.sleep(0.5)
@@ -522,7 +523,7 @@ class Operate:
         # 2. Robot drives straight towards waypt
         # ===============================================
         dist_to_waypt = math.hypot(x_dist_to_waypt, y_dist_to_waypt)
-        print(f'--- dist to waypoint: {x_dist_to_waypt}, {y_dist_to_waypt}')
+        print(f' --- dist to waypoint: {x_dist_to_waypt}, {y_dist_to_waypt}')
         # self.take_pic()
         straight_drive_meas = self.robot_move_straight(dist_to_waypt)
         
@@ -540,7 +541,7 @@ class Operate:
     
    ######################################################### 
     # TODO nyoom nyoom
-    def robot_move_rotate(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0):
+    def robot_move_rotate(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0, rotate_speed_offset=0.05):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
 
@@ -548,7 +549,6 @@ class Operate:
         wheel_rot_speed_big = 0.5
         wheel_rot_speed_small = 0.6
         # global robot_pose
-        full_rotation_time = 1.8       # TODO whatever this is 
 
         ticks_per_revolution = 20
         wheel_diameter = 68e-3            # yoinked from cytron
@@ -597,15 +597,15 @@ class Operate:
             num_ticks = np.round(abs((turning_revolutions * ticks_per_revolution) + tick_offset))
         
         # manual override
-        print(f'Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
+        print(f' /// Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
         # print(f"turning for {turning_time}s to {turning_angle_deg}")
 
         # -- direction of wheels, depending on sign
         if num_ticks != 0: # if the car is not going straight/has to turn
             if (turning_angle) > 0: # turn left 
-                lv, rv = [-wheel_rot_speed, wheel_rot_speed]
+                lv, rv = [-wheel_rot_speed, wheel_rot_speed+rotate_speed_offset]
             elif turning_angle < 0: # turn right
-                lv, rv = [wheel_rot_speed + 0.1, -wheel_rot_speed] 
+                lv, rv = [wheel_rot_speed+rotate_speed_offset, -wheel_rot_speed] 
         else: 
             lv, rv = [0.0, 0.0]
         
@@ -637,7 +637,7 @@ class Operate:
         time.sleep(0.5)
         self.take_pic()
         turn_drive_meas = Drive(1*lv, 1*rv, turning_time)
-        print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
+        # print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
         self.update_slam(turn_drive_meas)
         turn_drive_meas = Drive(0.9*lv, 0.9*rv, turning_time)
         # self.update_slam(turn_drive_meas)
@@ -673,7 +673,7 @@ class Operate:
         drive_speeds = [lv, rv] 
 
         # number of ticks to drive striaght for
-        print(f'driving for {num_ticks:.2f} ticks to {dist_to_waypt:.2f}')
+        print(f'/// Driving for {num_ticks:.2f} ticks to {dist_to_waypt:.2f}')
         # print(f"driving for {drive_time}s")
 
         # alt nyoom 
@@ -701,7 +701,7 @@ class Operate:
         time.sleep(0.5)
         self.take_pic()
         straight_drive_meas = Drive(1.0*lv, 1.0*rv, drive_time)
-        print(f'strdrv {straight_drive_meas.left_speed} {straight_drive_meas.right_speed} {straight_drive_meas.dt}')
+        # print(f'strdrv {straight_drive_meas.left_speed} {straight_drive_meas.right_speed} {straight_drive_meas.dt}')
         self.update_slam(straight_drive_meas)
 
         # update display 
@@ -746,23 +746,24 @@ class Operate:
             pygame.display.update()
         
     # TODO dra dra modified
-    def localise_rotate_robot(self, num_turns=0, turning_angle=(np.pi/6), wheel_rot_speed=0.5):
+    def localise_rotate_robot(self, num_turns=0, wheel_rot_speed=0.45):
 
         print("Robot trying to localise itself..")
 
         turning_angle = np.pi/12            # 15 deg increments
-        num_turns = 2*np.pi / turning_angle
+        num_turns = int(2*np.pi / turning_angle)
 
         # perform rotations and update location with each turn
-        for _ in range(num_turns):
-            self.robot_move_rotate(turning_angle, wheel_rot_speed=wheel_rot_speed)
+        for i in range(num_turns):
+            print(f'Rotation: {i}, Total turned: {turning_angle*i}')
+            self.robot_move_rotate(turning_angle=turning_angle, wheel_rot_speed=wheel_rot_speed)
             print(f"Position after rotating: {self.get_robot_pose()}")
             time.sleep(1)
 
         # recover initial orientation prior to turning
-        self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
+        # self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
 
-        print(f"Position after rotating: {self.get_robot_pose()}")
+        # print(f"Position after rotating: {self.get_robot_pose()}")
 
         return None
 
@@ -1059,6 +1060,7 @@ if __name__ == "__main__":
         # operate.update_slam(drive_meas)
         drive_meas = operate.control()
         operate.update_slam(drive_meas)
+        operate.detect_object()
         # update pygame display
         operate.draw(canvas)
         pygame.display.update()
@@ -1072,5 +1074,3 @@ if __name__ == "__main__":
         # angle = operate.ekf.robot.state[2][0]
         # angle = angle*180/np.pi
         # angle = angle % 360
-        #print(f"Position_rad: {operate.ekf.robot.state.squeeze().tolist()}")
-        # print(f"Position: {operate.ekf.robot.state[0][0]},{operate.ekf.robot.state[1][0]},{angle}")

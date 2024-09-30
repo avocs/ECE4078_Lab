@@ -121,7 +121,7 @@ def calibrateBaseline(scale):
     return baseline
 
 
-def find_num_ticks(): 
+def find_num_ticks_straight(): 
 
 # Feel free to change the range / step
     # wheel_speed_range = [[-0.4, 0.4], [-0.45, 0.45], [-0.5, 0.5]]
@@ -167,49 +167,51 @@ def find_num_ticks():
                     break
 
 
+def find_num_ticks_rotate():
 
-    # # Feel free to change the range / step
-    # wheel_speed_range = [[-0.4, 0.4], [-0.45, 0.45], [-0.5, 0.5]]
-    # angle_range = [-np.pi/4 ,-np.pi/2, np.pi, -np.pi]
-    # delta_ticks = []
-    # wheel_rot_speed= 0.5
-    # # wheel_rot_speed_small = 0.6
+    # Feel free to change the range / step
+    wheel_speed_range = [[-0.4, 0.4], [-0.45, 0.45], [-0.5, 0.5]]
+    angle_range = [-np.pi/4 ,-np.pi/2, np.pi, -np.pi]
+    delta_ticks = []
+    wheel_rot_speed= 0.8
+    wheel_rot_speed_offset = 0.1
 
-    # for angle in angle_range:
-    #     print("Driving to {} M/s.".format(angle))
+
+    for angle in angle_range:
+        print("Driving to {} M/s.".format(angle))
         
-    #     # -- direction of wheels, depending on sign
-    #     if angle > 0: # turn left 
-    #         lv, rv = [-wheel_rot_speed, wheel_rot_speed+0.1]
-    #     elif angle < 0: # 
-    #         lv, rv = [wheel_rot_speed+0.1, -wheel_rot_speed] 
+        # -- direction of wheels, depending on sign
+        if angle > 0: # turn left 
+            lv, rv = [-wheel_rot_speed, wheel_rot_speed+wheel_rot_speed_offset]
+        elif angle < 0: # 
+            lv, rv = [wheel_rot_speed+wheel_rot_speed_offset, -wheel_rot_speed] 
         
-    #     turn_speeds = [lv, rv]
-    #     print("Turn speeds {}. ".format(turn_speeds))
+        turn_speeds = [lv, rv]
+        print("Turn speeds {}. ".format(turn_speeds))
 
-    #     # Repeat the test until the correct ticks is found.      
-    #     while True:
-    #         delta_ticks = int(inpu t("Input the ticks to drive to: "))
+        # Repeat the test until the correct ticks is found.      
+        while True:
+            delta_ticks = int(input("Input the ticks to drive to: "))
             
-    #         initial_ticks = pibot.get_counter_values()
-    #         ticks_travelled_left, ticks_travelled_right = 0,0
-    #         pibot.set_velocity(turn_speeds)
+            initial_ticks = pibot.get_counter_values()
+            ticks_travelled_left, ticks_travelled_right = 0,0
+            pibot.set_velocity(turn_speeds)
 
-    #         while True: 
-    #             curr_ticks = pibot.get_counter_values()
-    #             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-    #             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-    #             print(f"tickcheck {ticks_travelled_left} {ticks_travelled_right} curr_ticks {curr_ticks}")
+            while True: 
+                curr_ticks = pibot.get_counter_values()
+                ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
+                ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
+                print(f"tickcheck {ticks_travelled_left} {ticks_travelled_right} curr_ticks {curr_ticks}")
 
-    #             if ticks_travelled_left >= delta_ticks and ticks_travelled_right >= delta_ticks:
-    #                 break
+                if ticks_travelled_left >= delta_ticks and ticks_travelled_right >= delta_ticks:
+                    break
         
-    #         pibot.set_velocity([0,0])
+            pibot.set_velocity([0,0])
 
-    #         uInput = input(f"Did the robot spin {angle}? [y/N]")
-    #         if uInput == 'y':
-    #             print("Recording that the robot spun {} rad in {} ticks at wheel speed {}.\n".format(angle, delta_ticks, turn_speeds))
-    #             break
+            uInput = input(f"Did the robot spin {angle}? [y/N]")
+            if uInput == 'y':
+                print("Recording that the robot spun {} rad in {} ticks at wheel speed {}.\n".format(angle, delta_ticks, turn_speeds))
+                break
 
 
 
@@ -240,7 +242,7 @@ if __name__ == "__main__":
     # np.savetxt(fileNameB, np.array([baseline]), delimiter=',')
 
     print('Calibrating number of ticks...\n')
-    find_num_ticks() 
+    find_num_ticks_rotate() 
 
 
     print('Finished wheel calibration')
