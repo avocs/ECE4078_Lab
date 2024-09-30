@@ -87,7 +87,7 @@ class Operate:
         self.pred_fname = ''
         self.request_recover_robot = False
         self.obj_detector_output = None
-        self.ekf_on = True
+        self.ekf_on = False
         self.double_reset_comfirm = 0
         self.image_id = 0
         self.notification = 'Press ENTER to start SLAM'
@@ -104,6 +104,7 @@ class Operate:
         # self.count_rot=0
         # self.default_rot_speeds = [0.4, -0.4]   # pivot during rotate-n-search
         self.curr_waypoint_count = 0
+        self.update_slam_flag = False
 
     # wheel control
     def control(self):       
@@ -155,7 +156,7 @@ class Operate:
                 self.notification = 'SLAM locates robot pose'
                 self.command['load_true_map'] = False
             else: 
-                if len(measurements) >= 3:
+                if self.update_slam_flag  and len(measurements) >= 3:
                     print('Updating SLAM')
                     self.ekf.add_landmarks(measurements)
                     self.ekf.update(measurements)
@@ -463,10 +464,11 @@ class Operate:
                     self.waypoints_list[0].pop(0)
                     print(f"New waypoints list: {self.waypoints_list}")
 
-                    # localise self at every sub-waypoint except for first and last 
-                    # if self.curr_waypoint_count > 1 and self.waypoints_list[0]:
-                    #     self.localise_rotate_robot(num_turns=6, turning_angle=(np.pi/6))
-                    
+                    # localise self at every sub-waypoint except for first and last at that point
+                    if self.curr_waypoint_count > 1 and self.waypoints_list[0]:
+                        self.update_slam_flag = True
+                        self.localise_rotate_robot(num_turns=6, turning_angle=(np.pi/6))
+                        self.update_slam_flag = False
                     # if the waypoint is the last one in its list, means fruit is found
                     if not self.waypoints_list[0]:
                         self.waypoints_list.pop(0)
@@ -538,7 +540,7 @@ class Operate:
     
    ######################################################### 
     # TODO nyoom nyoom
-    def robot_move_rotate(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.4):
+    def robot_move_rotate(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
 
@@ -566,10 +568,14 @@ class Operate:
         else: 
             tick_offset = 0
 
-        if abs(turning_angle) >= (np.pi/4):
-            wheel_rot_speed = wheel_rot_speed_big
-        else:
-            wheel_rot_speed = wheel_rot_speed_small
+        # if a wheel rotation speed is not specified as an argument, this determines the speed it should use
+        if wheel_rot_speed == 0:
+            if abs(turning_angle) >= (np.pi/4):
+                wheel_rot_speed = wheel_rot_speed_big
+            else:
+                wheel_rot_speed = wheel_rot_speed_small
+        else: 
+            wheel_rot_speed = wheel_rot_speed
 
         # move the robot to perform rotation 
 
@@ -739,15 +745,13 @@ class Operate:
             self.draw(canvas)
             pygame.display.update()
         
-    # TODO added rotate robot to scan landmarks, need to change this logic out
+    # TODO dra dra modified
     def localise_rotate_robot(self, num_turns=0, turning_angle=(np.pi/6), wheel_rot_speed=0.5):
 
         print("Robot trying to localise itself..")
-        # turning_angle = np.pi / 6       # 30 deg increments 
 
-
-
-
+        turning_angle = np.pi/12            # 15 deg increments
+        num_turns = 2*np.pi / turning_angle
 
         # perform rotations and update location with each turn
         for _ in range(num_turns):
@@ -757,53 +761,60 @@ class Operate:
 
         # recover initial orientation prior to turning
         self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
-        
 
         print(f"Position after rotating: {self.get_robot_pose()}")
-
-
 
         return None
 
 
     # NOTE: implement cv for checks
-    def take_and_analyse_picture(self, target_fruit):
-        # global aruco_img
+    def take_fruit_pic_and_estimate_fruit_pose(self, target_fruit, target_fruit_true_pos=None):
 
-        # global camera_matrix
-        # global dist_coeffs
-        # marker_pose = None
-        # aruco_id =[]
+        fruit_aligned = False
 
-
-        self.take_pic()
-        # run object detector to identify fruits in sight, if there is one, 
-        # there will be something in the obj detector output
-        self.detect_object()
-
-        # if the latest picture does not none
-        if self.obj_detector_output is not None: 
-            # --- obj_detector_output: [bboxes, robot]
-
-            # initialise a dictionary for all the bboxes found in the images
-            image_outputs = {}
-            
-            # for each bounding box captured in the picture
-            for bbox in self.obj_detector_output[0]:
-                label = bbox[0]
-                bounding_box = bbox[1].tolist()
-                if label not in image_outputs:
-                    image_outputs[label] = []
-                image_outputs[label].append([bounding_box])
-
-        if target_fruit in image_outputs.keys():
-            print("Fruit in line of sight!")
-            found_target_fruit_bbox = image_outputs[target_fruit]
-            # this is x,y pose. imma need access to the theta orientation to help in 
-            object_pose_entry, _ = obj_est.estimate_pose(self.camera_matrix, target_fruit, self.obj_detector_output[1])
+        while not fruit_aligned:
         
-        else:
-            print("Fruit not in line of sight, abit far away it seems, should try to account for this?")
+            # take a picture of the current line of sight
+            self.take_pic()
+
+            # run object detector to identify fruits in sight, if there is one, 
+            # there will be something in the assigned to obj detector output
+            self.detect_object()
+
+            # if there is any fruit identified
+            if self.obj_detector_output is not None: 
+                # --- obj_detector_output: [bboxes, robot_pose], see detect_object() function
+
+                # initialise a dictionary for all the bboxes found in the image
+                image_outputs = {}
+                
+                # for each bounding box captured in the picture
+                for bbox in self.obj_detector_output[0]:
+                    # obtain label and the corresponding bbox coordinates
+                    label = bbox[0]
+                    bounding_box = bbox[1].tolist()
+                    # if the fruit is unique
+                    if label not in image_outputs:
+                        image_outputs[label] = []
+                    image_outputs[label].append([bounding_box])
+
+            if target_fruit in image_outputs.keys():
+                print("Fruit in line of sight!")
+                found_target_fruit_bbox = image_outputs[target_fruit]
+                # this is x,y pose. imma need access to the theta orientation to help in 
+                object_pose_entry, _ = obj_est.estimate_pose(self.camera_matrix, target_fruit, found_target_fruit_bbox)
+                print(f"Fruit {target_fruit} found at {object_pose_entry}")
+
+                # perform angle alignment
+                print(f'Camera aligning itself to see fruit')
+                # --- obtain angle of fruit 
+
+                # --- calculate turning angle 
+
+                # --- update location 
+
+            else:
+                print("Fruit not in line of sight, abit far away it seems, should try to account for this?")
 
 
         measurements, aruco_img = self.aruco_sensor.detect_marker_positions(self.img)
@@ -821,8 +832,24 @@ class Operate:
     # Keyboard control for Milestone 4 Level 2
     def update_keyboard_M4(self):
         for event in pygame.event.get():
+            # drive forward
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+                # pass # TODO
+                self.command['wheel_speed'] = [0.7, 0.7]
+            # drive backward
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+                self.command['wheel_speed'] = [-0.7, -0.7]
+            # turn left
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+                self.command['wheel_speed'] = [-0.5, 0.4]
+            # turn right
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+                self.command['wheel_speed'] = [0.4, -0.5]
+            # stop
+            elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
+                self.command['wheel_speed'] = [0, 0]
             # run SLAM
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
 
                 n_observed_markers = len(self.ekf.taglist)
                 if n_observed_markers == 0:
@@ -964,7 +991,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     print("Search order:")
     n_fruit = 1
     for fruit in search_list:
-        for i in range(3):
+        for i in range(5):
             if fruit == fruit_list[i]:
                 print('{}) {} at [{}, {}]'.format(n_fruit, fruit, np.round(fruit_true_pos[i][0], 1), np.round(fruit_true_pos[i][1], 1)))
         n_fruit += 1
@@ -1027,17 +1054,19 @@ if __name__ == "__main__":
         
         # take latest pic and update slam
         operate.take_pic()
-        lv, rv = operate.pibot_control.set_velocity([0, 0])
-        drive_meas = Drive(lv, rv, 0.0)
+        # lv, rv = operate.pibot_control.set_velocity([0, 0])
+        # drive_meas = Drive(lv, rv, 0.0)
+        # operate.update_slam(drive_meas)
+        drive_meas = operate.control()
         operate.update_slam(drive_meas)
-        
         # update pygame display
         operate.draw(canvas)
         pygame.display.update()
         
         # detector view
-        operate.detect_object()
+        # operate.detect_object()
         
+        # upon pressing 'w', this function completely takes over
         # perform fruit search
         operate.auto_fruit_search(canvas)
         # angle = operate.ekf.robot.state[2][0]
