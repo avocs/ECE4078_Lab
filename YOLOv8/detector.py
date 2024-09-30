@@ -77,13 +77,22 @@ class ObjectDetector:
         # returns all the bounding boxes coordinates for each fruit, labelled
         return bounding_boxes
     
-    def write_image(self, bounding_box_info, state, pred_output_dir):      
+    def write_image(self, bounding_box_info, state, pred_output_dir, bbox_fname=None, pred_pose_fname=None):      
 
         # save the prediction label images to png called pred_num.png
         # Generate a image name for saving the raw images to
         pred_fname = os.path.join(pred_output_dir, 'pred_' + str(self.pred_count) + '.png')
         self.pred_count += 1
 
+        if bbox_fname is not None:
+            bbox_fname = self.bbox_fname
+        else: 
+            bbox_fname = bbox_fname
+
+        if pred_pose_fname is not None:
+            pred_pose_fname = self.pred_pose_fname
+        else:
+            pred_pose_fname = pred_fname
         # -- for every prediction label image (predfname), save the state of the robot (pose) to pred.txt (its position when pressing "p")
         # at the same time, saves the bbox obtained from each image to bbox.txt
         # this information is needed to estimate the pose of the object
@@ -92,13 +101,13 @@ class ObjectDetector:
             label = bounding_box[0]
             bbox = bounding_box[1].tolist()
             bbox_dict = {"label": label, 'bbox': bbox, "predfname": pred_fname}
-            self.bbox_fname.write(json.dumps(bbox_dict) + '\n')
-            self.bbox_fname.flush()
+            bbox_fname.write(json.dumps(bbox_dict) + '\n')
+            bbox_fname.flush()
             
         # write each robot pose info as a dictionary into pred.txt
         img_dict = {"pose": state, "predfname": pred_fname}
-        self.pred_pose_fname.write(json.dumps(img_dict) + '\n')
-        self.pred_pose_fname.flush()
+        pred_pose_fname.write(json.dumps(img_dict) + '\n')
+        pred_pose_fname.flush()
         
         # return the png name for operate to assist in saving the captured image
         return f'pred_{self.pred_count-1}.png'

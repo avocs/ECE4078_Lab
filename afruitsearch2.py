@@ -51,6 +51,7 @@ import math
 from slam.aruco_sensor import Marker
 import copy
 import a_star_path_planning as astar
+import object_pose_estyolo as obj_est
 
 
 class Operate:
@@ -129,6 +130,7 @@ class Operate:
         # sandra: added objects 
         self.scale = scale
         self.baseline = baseline
+        self.camera_matrix = camera_matrix
         robot = Robot(baseline, scale, camera_matrix, dist_coeffs)
         return EKF(robot)
     
@@ -153,7 +155,7 @@ class Operate:
                 self.notification = 'SLAM locates robot pose'
                 self.command['load_true_map'] = False
             else: 
-                if len(measurements) >= 2:
+                if len(measurements) >= 3:
                     print('Updating SLAM')
                     self.ekf.add_landmarks(measurements)
                     self.ekf.update(measurements)
@@ -468,8 +470,8 @@ class Operate:
                     # if the waypoint is the last one in its list, means fruit is found
                     if not self.waypoints_list[0]:
                         self.waypoints_list.pop(0)
-                        print("Fruit reached, robot sleeps for 2 seconds")
-                        time.sleep(2)
+                        print("Fruit reached, robot sleeps for 3 seconds")
+                        time.sleep(3)
 
                     self.record_data()
             else:
@@ -551,9 +553,8 @@ class Operate:
         baseline = self.baseline
 
         
-
-        if abs(turning_angle) > 0:
-            tick_offset = 0
+        if abs(turning_angle * 180 / np.pi()) > 45:
+            tick_offset = 8
         else: 
             tick_offset = 0
 
@@ -616,7 +617,7 @@ class Operate:
 
             while True: 
                 self.take_pic()
-                self.pibot_control.set_velocity(turn_speeds)
+                # self.pibot_control.set_velocity(turn_speeds)
                 curr_ticks = self.pibot_control.get_counter_values()
                 ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
                 ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
@@ -624,13 +625,14 @@ class Operate:
 
                 if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
                     break
-                self.draw(canvas)
-                pygame.display.update()
+                # self.draw(canvas)
+                # pygame.display.update()
             self.pibot_control.set_velocity([0,0])
 
         # update own location only after finished driving
+        time.sleep(0.5)
         self.take_pic()
-        turn_drive_meas = Drive(lv, rv, turning_time)
+        turn_drive_meas = Drive(0.9*lv, 0.9*rv, turning_time)
         print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
         self.update_slam(turn_drive_meas)
 
@@ -672,26 +674,27 @@ class Operate:
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
         # NOTE : sandra tried moving the next line into the while loop
-        # self.pibot_control.set_velocity(drive_speeds)
+        self.pibot_control.set_velocity(drive_speeds)
 
         while True: 
-            self.take_pic()
+            # self.take_pic()
             self.pibot_control.set_velocity(drive_speeds)
             curr_ticks = self.pibot_control.get_counter_values()
             # print(f"curr_ticks {curr_ticks}")
 
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            self.draw(canvas)
-            pygame.display.update()
+            # self.draw(canvas)
+            # pygame.display.update()
             if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
                 break
         
         self.pibot_control.set_velocity([0,0])
 
         # update own location only after finished driving
+        time.sleep(0.5)
         self.take_pic()
-        straight_drive_meas = Drive(lv, rv, drive_time)
+        straight_drive_meas = Drive(1.0*lv, 1.0*rv, drive_time)
         print(f'strdrv {straight_drive_meas.left_speed} {straight_drive_meas.right_speed} {straight_drive_meas.dt}')
         self.update_slam(straight_drive_meas)
 
@@ -750,29 +753,62 @@ class Operate:
 
         # recover initial orientation prior to turning
         self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
+        
+
         print(f"Position after rotating: {self.get_robot_pose()}")
+
+
 
         return None
 
 
-    # NOTE: running purely on slam for now
-    def take_and_analyse_picture(self):
-        global aruco_img
+    # NOTE: implement cv for checks
+    def take_and_analyse_picture(self, target_fruit):
+        # global aruco_img
 
-        global camera_matrix
-        global dist_coeffs
-        marker_pose = None
+        # global camera_matrix
+        # global dist_coeffs
+        # marker_pose = None
         # aruco_id =[]
 
-        # self.img = self.take_pic()
+
+        self.take_pic()
+        # run object detector to identify fruits in sight, if there is one, 
+        # there will be something in the obj detector output
+        self.detect_object()
+
+        # if the latest picture does not none
+        if self.obj_detector_output is not None: 
+            # --- obj_detector_output: [bboxes, robot]
+
+            # initialise a dictionary for all the bboxes found in the images
+            image_outputs = {}
+            
+            # for each bounding box captured in the picture
+            for bbox in self.obj_detector_output[0]:
+                label = bbox[0]
+                bounding_box = bbox[1].tolist()
+                if label not in image_outputs:
+                    image_outputs[label] = []
+                image_outputs[label].append([bounding_box])
+
+        if target_fruit in image_outputs.keys():
+            print("Fruit in line of sight!")
+            found_target_fruit_bbox = image_outputs[target_fruit]
+            # this is x,y pose. imma need access to the theta orientation to help in 
+            object_pose_entry, _ = obj_est.estimate_pose(self.camera_matrix, target_fruit, self.obj_detector_output[1])
+        
+        else:
+            print("Fruit not in line of sight, abit far away it seems, should try to account for this?")
+
+
         measurements, aruco_img = self.aruco_sensor.detect_marker_positions(self.img)
+
 
         # visualise
         operate.draw(canvas)
         pygame.display.update()
         
-        # print(f"1_ids : {aruco_id}")
-
         return measurements, aruco_img
         # return landmarks, detector_output,aruco_corners
         

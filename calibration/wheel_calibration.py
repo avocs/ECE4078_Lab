@@ -189,7 +189,7 @@ def find_num_ticks():
 
     #     # Repeat the test until the correct ticks is found.      
     #     while True:
-    #         delta_ticks = int(input("Input the ticks to drive to: "))
+    #         delta_ticks = int(inpu t("Input the ticks to drive to: "))
             
     #         initial_ticks = pibot.get_counter_values()
     #         ticks_travelled_left, ticks_travelled_right = 0,0
