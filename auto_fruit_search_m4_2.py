@@ -128,13 +128,14 @@ class Operate:
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
 
+        print(initial_ticks)
         left_speed, right_speed = self.pibot_control.set_velocity([lv, rv])
 
         while True: 
             curr_ticks = self.pibot_control.get_counter_values()
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            # print(f"Curr ticks: {curr_ticks}")
+            print(f"Curr ticks: {curr_ticks}")
             # if pid is enabled, right wheel follows left 
             # if ticks_travelled_left >= num_ticks:
             #     break
@@ -413,6 +414,7 @@ class Operate:
         '''
     # obtain a searching index and the corresponding true pos of the fruits for algorithm
         search_index = []
+        print("Search List: ", search_list)
         for i in range(len(search_list)):          ## The shopping list only, so 3
             for j in range(len(fruits_list)):      ## The full list at 5
                 if search_list[i] == fruits_list[j]:
@@ -432,49 +434,50 @@ class Operate:
             grid_src = astar.convert_coord_to_grid(src_coord)
             dest_coord = search_true_pos[i]
                  # Call the Convert Coordinates to Grid Function to convert dest_coord to dest_grid
-        dest_grid = astar.convert_coord_to_grid(dest_coord)
-        # print("Dest Grid: ", dest_grid)
-        
-        # Call the Modify Obstacles Function to modify the grid every new run. Setting the current destination as an obstacle and the next destination as not an obstacle
-        grid = astar.modify_obstacles(aruco_true_pos.tolist(), search_index[i], fruits_true_pos.tolist())
-        
-        distances = []
-        # print(search_index)
-        col = fruits_true_pos[search_index[i]][0]
-        row = fruits_true_pos[search_index[i]][1]
-        for j in range(len(aruco_true_pos)):
-            value = astar.calculate_h_value(row, col, aruco_true_pos[j])
-            distances.append(value)
-            # print("Distance ", i, " ", value)
-        
-        count = 0
-        for k in range(len(aruco_true_pos)):
-            if distances[k] <= 0.3:
-                count += 1
-        
-        if count >= 1:
-            dest_grid = astar.modify_destinations(dest_grid, grid)
-            # print("Came here!")
-        else:
-            # print("Else!")
-            for l in range (len(dest_coord)):
-            # print(dest_coord)
-            # print(dest_coord[j])
-                if dest_coord[l] < 0:
-                    dest_coord[l] += astar.how_far_from_fruits
-                    
-                else:
-                    dest_coord[l] -= astar.how_far_from_fruits
-                dest_coord[l] = round(dest_coord[l], 2)
             dest_grid = astar.convert_coord_to_grid(dest_coord)
-           
+            print("Dest Grid: ", dest_grid)
+            
+            # Call the Modify Obstacles Function to modify the grid every new run. Setting the current destination as an obstacle and the next destination as not an obstacle
+            grid = astar.modify_obstacles(aruco_true_pos.tolist(), search_index[i], fruits_true_pos.tolist())
+            
+            distances = []
+            # print(search_index)
+            col = fruits_true_pos[search_index[i]][0]
+            row = fruits_true_pos[search_index[i]][1]
+            for j in range(len(aruco_true_pos)):
+                value = astar.calculate_h_value(row, col, aruco_true_pos[j])
+                distances.append(value)
+                # print("Distance ", i, " ", value)
+            
+            count = 0
+            for k in range(len(aruco_true_pos)):
+                if distances[k] <= 0.3:
+                    count += 1
+            
+            if count >= 1:
+                dest_grid = astar.modify_destinations(dest_grid, grid)
+                # print("Came here!")
+            else:
+                # print("Else!")
+                for l in range (len(dest_coord)):
+                # print(dest_coord)
+                # print(dest_coord[j])
+                    if dest_coord[l] < 0:
+                        dest_coord[l] += astar.how_far_from_fruits
+                        
+                    else:
+                        dest_coord[l] -= astar.how_far_from_fruits
+                    dest_coord[l] = round(dest_coord[l], 2)
+                dest_grid = astar.convert_coord_to_grid(dest_coord)
+            
             waypoints = astar.a_star_search(grid, grid_src, dest_grid)
             simplified_waypoints = astar.simplify_path(waypoints)
             self.waypoints_list.append(simplified_waypoints)
             astar.plot_waypoints(simplified_waypoints)
+            dest_coord = simplified_waypoints[-1]
             src_coord = dest_coord
-            # Feedback
-        print(f"Path generated: {self.waypoints_list}") 
+                # Feedback
+        # print(f"Path generated: {self.waypoints_list}") 
         astar.plot_full_map(aruco_true_pos, fruits_copy)
         # self.display_map(aruco_true_pos, fruits_copy)
 
@@ -623,10 +626,11 @@ class Operate:
 
         # assign speed direction according to sign of angle
         turn_speeds = [-wheel_rot_speed, wheel_rot_speed] if turning_angle > 0 else [wheel_rot_speed, -wheel_rot_speed]
-        turn_speeds = [0.0, 0.0] if num_ticks != 0 else turn_speeds
+        turn_speeds = [0.0, 0.0] if num_ticks == 0 else turn_speeds
 
         # alt nyoom 
         
+        print(turn_speeds)
         drive_meas = self.control_tick(turn_speeds[0], turn_speeds[1], turning_time, num_ticks)
 
         # initial_ticks = self.pibot_control.get_counter_values()
@@ -680,7 +684,7 @@ class Operate:
         # print(f"driving for {drive_time}s")
 
         # alt nyoom
-        drive_meas = self.control_tick(drive_speeds[0], drive_speeds[1], num_ticks=num_ticks)
+        drive_meas = self.control_tick(drive_speeds[0], drive_speeds[1], drive_time, num_ticks)
         
         # initial_ticks = self.pibot_control.get_counter_values()
         # ticks_travelled_left, ticks_travelled_right = 0,0
@@ -730,7 +734,7 @@ class Operate:
             for _ in range(4):
                 self.take_pic()
                 drive_meas = Drive(0.0, 0.0, 0.0)
-                self.update_slam_gui(drive_meas)
+                self.update_slam_gui(drive_meas, canvas)
                 time.sleep(0.1)
 
             print(f"Position after rotating: {self.get_robot_pose()}")

@@ -108,9 +108,11 @@ class Operate:
         self.bg = pygame.image.load('ui/gui_mask.jpg')
 
     # wheel control
-    def control(self):       
+    def control(self, dt=None):       
         left_speed, right_speed = self.pibot_control.set_velocity(self.command['wheel_speed'])
-        dt = time.time() - self.control_clock
+        # NOTE: changy  cahnge
+        if dt is None:
+            dt = time.time() - self.control_clock
         drive_meas = Drive(left_speed, right_speed, dt)
         self.control_clock = time.time()
         return drive_meas

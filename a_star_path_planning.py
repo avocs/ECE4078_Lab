@@ -62,8 +62,8 @@ class Cell:
         self.h = 0  # Heuristic cost from this cell to destination
 
 # Define the size of the grid
-ROW = 33
-COL = 33
+ROW = 65
+COL = 65
 
 # Defining Global Variables
 printingFlag = False
@@ -71,8 +71,10 @@ printingTestFlag = False
 plotFlag = True
 modificationFlag = False
 
-how_far_from_fruits = 0.3
+how_far_from_fruits = 0.35
 impactRadiusSize = 0.1
+spacing = 5
+divisor = 0.01
 
 
 '''
@@ -710,9 +712,10 @@ def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
 # Function:
 # This is to transpose the xy coordinates into a one-on-one with the grid spacing
 def convert_coord_to_grid(xy_coordinates):
-
+    global spacing
+    global divisor
     # Create an array that runs from -1.6 to 1.6
-    space = [round(i*0.1, 2) for i in range(-16, 17, 1)]
+    space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
     row_col_grid_indexing = []
 
     # Assign the equivalent grid representation of the xy coordinate
@@ -734,7 +737,9 @@ def convert_coord_to_grid(xy_coordinates):
 # Function:
 # This is to transpose the grid spacing into a one-on-one with the xy coordinates
 def convert_grid_to_coord(path_grid):
-    space = [round(i*0.1, 2) for i in range(-16, 17, 1)]
+    global spacing
+    global divisor
+    space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
     path_coord = np.zeros([len(path_grid), 2])
 
     # While running through 0 to 32
