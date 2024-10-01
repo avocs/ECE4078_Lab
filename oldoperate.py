@@ -33,7 +33,9 @@ class Operate:
                         'save_image': False}
                         
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
-        self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)
+        # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)
+
+        self.pibot_control.set_pid(use_pid=1, kp=0, ki=0, kd=0)
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)
         
         # Create a folder "lab_output" that stores the results of the lab

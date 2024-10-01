@@ -29,8 +29,9 @@ class EKF:
         self.lm_pics.append(pygame.image.load(f_))
         self.pibot_pic = pygame.image.load(f'./ui/8bit/pibot_top.png')
         
-        self.val_offset = 2
-        self.val_offset_enabled = False
+        # NODE
+        self.val_offset = 0.23
+        self.val_offset_enabled = True
         
     def reset(self):
         self.robot.state = np.zeros((3, 1))
@@ -39,13 +40,13 @@ class EKF:
         self.robot.prev_state = np.zeros((3,1))
 
         # #TODO
-        # # self.robot.state[1,0] += 0.2/100.0
-        # if self.val_offset_enabled:
-        #     y_robot_value = self.robot.state[1,0]
-        #     if y_robot_value < 0:
-        #         self.robot.state[1,0] -= self.val_offset/100.0
-        #     else:
-        #         self.robot.state[1,0] += self.val_offset/100.0
+        # self.robot.state[1,0] += 0.2/100.0
+        if self.val_offset_enabled:
+            y_robot_value = self.robot.state[1,0]
+            if y_robot_value < 0:
+                self.robot.state[1,0] += self.val_offset
+            else:
+                self.robot.state[1,0] -= self.val_offset
 
         self.markers = np.zeros((2,0))
         self.taglist = []
