@@ -501,18 +501,21 @@ class Operate:
                     print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {self.waypoints_list[0][0]}")
                     _ , _ = self.drive_to_point(self.waypoints_list[0][0], canvas)
                     robot_pose = self.get_robot_pose()
+
+
                     print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
                     print()
                     
-                    # remove that waypoint off the waypoint list
-                    self.waypoints_list[0].pop(0)
-                    print(f"New waypoints list: {self.waypoints_list}")
 
                     # localise self at every sub-waypoint except for first and last at that point
                     if self.curr_waypoint_count > 1 and self.waypoints_list[0]:
                         self.update_slam_flag = True
                         self.localise_rotate_robot()
                         self.update_slam_flag = False
+
+                    # remove that waypoint off the waypoint list
+                    self.waypoints_list[0].pop(0)
+                    print(f"New waypoints list: {self.waypoints_list}")
                     # if the waypoint is the last one in its list, means fruit is found
                     if not self.waypoints_list[0]:
                         self.waypoints_list.pop(0)
@@ -603,12 +606,10 @@ class Operate:
         else: 
             wheel_rot_speed = wheel_rot_speed
 
-        # move the robot to perform rotation 
 
         # wheel circumference
         wheel_circum = np.pi * wheel_diameter
-        #  If the robot pivoted 360°, the distance traveled by each wheel 
-        # would be equal to the circumference of this pivot circle
+        # If the robot pivoted 360°, the distance traveled by each wheel = circumference of this pivot circle
         pivot_circum = np.pi * baseline 
         distance_per_wheel = abs(turning_angle / (2*np.pi)) * pivot_circum
         turning_time = distance_per_wheel/(self.scale * wheel_rot_speed)
@@ -616,12 +617,13 @@ class Operate:
         # distance each wheel must travel
         # distance_per_wheel = (baseline/2) * turning_angle
         turning_revolutions = distance_per_wheel / wheel_circum
+
+        # if turn_ticks has been given be default, none of the previous calculations matter anymore
         if turn_ticks != 0:
             num_ticks = turn_ticks
         else:
             num_ticks = np.round(abs((turning_revolutions * ticks_per_revolution) + tick_offset))
         
-        # manual override
         print(f' /// Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
 
         # assign speed direction according to sign of angle
@@ -632,20 +634,6 @@ class Operate:
         
         print(turn_speeds)
         drive_meas = self.control_tick(turn_speeds[0], turn_speeds[1], turning_time, num_ticks)
-
-        # initial_ticks = self.pibot_control.get_counter_values()
-        # ticks_travelled_left, ticks_travelled_right = 0,0
-        # if turning_angle != 0:
-        #     self.pibot_control.set_velocity(turn_speeds)
-        #     while True: 
-        #         # self.pibot_control.set_velocity(turn_speeds)
-        #         curr_ticks = self.pibot_control.get_counter_values()
-        #         ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-        #         ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-        #         # print(f"curr_ticks {curr_ticks}")
-        #         if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
-        #             break
-        #     self.pibot_control.set_velocity([0,0])
 
         # update own location only after finished driving
         time.sleep(0.5)
@@ -686,21 +674,6 @@ class Operate:
         # alt nyoom
         drive_meas = self.control_tick(drive_speeds[0], drive_speeds[1], drive_time, num_ticks)
         
-        # initial_ticks = self.pibot_control.get_counter_values()
-        # ticks_travelled_left, ticks_travelled_right = 0,0
-        # self.pibot_control.set_velocity(drive_speeds)
-        # while True: 
-        #     self.pibot_control.set_velocity(drive_speeds)
-        #     curr_ticks = self.pibot_control.get_counter_values()
-        #     # print(f"curr_ticks {curr_ticks}")
-        #     ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-        #     ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-   
-        #     if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
-        #         break
-        
-        # self.pibot_control.set_velocity([0,0])
-
         # update own location only after finished driving
         time.sleep(0.5)
         self.take_pic()
@@ -717,7 +690,7 @@ class Operate:
     
 ############################ WAYPOINT UPDATE AND SLAM HELPER FUNCTIONS FOR OPERATE CLASS ####################
   
-    # TODO dra dra modified
+    # TODO 
     def localise_rotate_robot(self, num_turns=0, wheel_rot_speed=0.5):
 
         print("Robot trying to localise itself..")
@@ -728,7 +701,9 @@ class Operate:
         # perform rotations and update location with each turn
         for i in range(num_turns):
             print(f'Rotation: {i}, Total turned: {turning_angle*i}')
-            small_rotate_drive_meas = self.robot_move_rotate(turning_angle=turning_angle, wheel_rot_speed=wheel_rot_speed)
+            
+            # fixed to turn 1 tick at a time 
+            small_rotate_drive_meas = self.robot_move_rotate(turn_ticks=1, turning_angle=turning_angle, wheel_rot_speed=wheel_rot_speed)
 
             # taking a couple more pictures after stopping from rotation just to make sure
             for _ in range(4):
@@ -738,7 +713,7 @@ class Operate:
                 time.sleep(0.1)
 
             print(f"Position after rotating: {self.get_robot_pose()}")
-            time.sleep(1)
+            time.sleep(0.5)
 
         # recover initial orientation prior to turning
         # self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
@@ -746,8 +721,7 @@ class Operate:
         # print(f"Position after rotating: {self.get_robot_pose()}")
 
         return None
-
-
+    
     # NOTE: implement cv for checks, currently unused
     def take_fruit_pic_and_estimate_fruit_pose(self, target_fruit, target_fruit_true_pos=None):
 

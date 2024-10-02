@@ -594,52 +594,6 @@ def a_star_search_tolerated(grid, src, dest):
     # If the destination is not found after visiting all cells
     if not found_dest:
         print("Failed to find the destination cell")
-
-# ##### TODO sandra changed here im gonna cry #####
-# def is_within_tolerance(row, col, dest, tolerance):
-#     distance_to_goal = math.sqrt((row - dest[0]) ** 2 + (col - dest[1]) ** 2)
-#     return distance_to_goal <= tolerance
-
-# def calculate_turning_angle(i, j, new_i, new_j):
-#     # Calculate the turning angle between the current and next position (can be refined)
-#     delta_x = new_i - i
-#     delta_y = new_j - j
-#     angle = math.atan2(delta_y, delta_x)  # Angle in radians
-#     return abs(angle)  # Always positive for radius check
-
-# def adjust_destination_for_camera():
-#     global camera_offset, goal_stop_dist, clearance_radius
-#     chassis_width = 15e-2
-#     chassis_length = 25e-2
-#     camera_offset = 15e-2
-#     goal_stop_dist = 0.35
-#     clearance_radius = 0.1 
-
-#     # NOTE changed here 
-#     baseline = 12.45e-2     # baseline hardcoded 
-
-# def adjust_destination_for_camera(dest, stop_distance, camera_offset, theta):
-#     """
-#     Adjust the destination based on the stopping distance and the robot's orientation.
-    
-#     Args:
-#         dest (tuple): The target destination (x, y).
-#         stop_distance (float): The desired distance from the camera to the target.
-#         camera_offset (float): The distance from the camera to the robot's center.
-#         theta (float): The orientation of the robot in radians (angle between the robot's forward direction and the target).
-        
-#     Returns:
-#         tuple: The adjusted destination for the robot's center.
-#     """
-#     # Calculate the x and y offsets due to the camera's position relative to the robot's center
-#     x_offset = camera_offset * math.cos(theta)
-#     y_offset = camera_offset * math.sin(theta)
-    
-#     # Calculate the adjusted destination based on the stop distance and orientation
-#     adjusted_x = dest[0] - (stop_distance - camera_offset) * math.cos(theta) - x_offset
-#     adjusted_y = dest[1] - (stop_distance - camera_offset) * math.sin(theta) - y_offset
-    
-#     return (adjusted_x, adjusted_y)
     
 ##################### 
 # PATH SIMPLICATION

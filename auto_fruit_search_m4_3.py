@@ -52,9 +52,10 @@ from slam.aruco_sensor import Marker
 from object_pose_estyolo_M4 import live_fruit_pose_update
 import copy
 import a_star_path_planning as astar
-import object_pose_estyolo as obj_est
+import object_pose_estyolo_M4 as obj_est
+# import object_pose_estyolo as obj_est
 import d_star_lite_m4 as dstar
-
+from d_star_lite_m4 import Node
 
 
 class Operate:
@@ -115,6 +116,48 @@ class Operate:
         drive_meas = Drive(left_speed, right_speed, dt)
         self.control_clock = time.time()
         return drive_meas
+    
+    # NOTE sandra -- call to control by time
+    def control_time(self, lv, rv, drive_time):       
+        
+        # print("Turning for {:.2f} seconds at {} {}".format(turning_time, lv, rv))
+        left_speed, right_speed = self.pibot_control.set_velocity([lv, rv])         # start moving robot
+        time.sleep(drive_time)                                                    # wait until time passed
+        self.pibot_control.set_velocity([0,0])                                      # stop robot
+        drive_meas = Drive(left_speed, right_speed, drive_time)                   # obtain drive_meas to update location
+        return drive_meas
+    
+    
+    # NOTE sandra -- call to control by ticks 
+    def control_tick(self, lv, rv, drive_time, num_ticks):
+
+        initial_ticks = self.pibot_control.get_counter_values()
+        ticks_travelled_left, ticks_travelled_right = 0,0
+
+        print(initial_ticks)
+        left_speed, right_speed = self.pibot_control.set_velocity([lv, rv])
+
+        while True: 
+            curr_ticks = self.pibot_control.get_counter_values()
+            ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
+            ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
+            print(f"Curr ticks: {curr_ticks}")
+            # if pid is enabled, right wheel follows left 
+            # if ticks_travelled_left >= num_ticks:
+            #     break
+            if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
+                break
+        self.pibot_control.set_velocity([0,0])
+        drive_meas = Drive(left_speed, right_speed, drive_time)
+        
+        return drive_meas
+        
+    # NOTE one stop call to update slam and the pygame window
+    def update_slam_gui(self, drive_meas, canvas):
+        self.update_slam(drive_meas)
+        self.draw(canvas)
+        pygame.display.update()
+
         
     # camera control
     def take_pic(self):
@@ -467,16 +510,14 @@ class Operate:
         astar.plot_full_map(aruco_true_pos, fruits_copy)
         # self.display_map(aruco_true_pos, fruits_copy)
 
-
-
 ############################### D* function for operate class ##########################
 
 # TODO Cheryl
     def generate_path_dstar(self):
-        self.ox, self.oy = generate_obstacles(fruit_true_pos, aruco_true_pos)
+        self.ox, self.oy = dstar.generate_obstacles(fruit_true_pos, aruco_true_pos)
         self.path_planning = dstar(self.ox, self.oy)
         
-        sx, sy, gx, gy, fx, fy, face_angle = generate_points_L2(fruit_goals, aruco_true_pos)
+        sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L2(fruit_goals, aruco_true_pos)
         
         self.waypoints_list = []
         for i in range(len(sx)):
@@ -492,6 +533,8 @@ class Operate:
 
     # TODO stuckkkkk
     def fruit_detect_obstacle(self):
+
+        # capture an image
         self.take_pic()
 
         # to detect the obj in detector
@@ -499,12 +542,11 @@ class Operate:
         self.fin_prediction_img = cv2.cvtColor(self.prediction_img, cv2.COLOR_RGB2BGR)
         self.obj_detector_output = (self.obj_detector_pred, self.ekf.robot.state.tolist())
 
-
         # the raw image, predicted image, predicted pose are saved
         self.pred_fname = self.obj_detector.write_image(self.obj_detector_output[0], self.obj_detector_output[1], self.pred_output_dir)
 
         # estimate the position of the fruit
-        fruit_est= live_fruit_pose_update()
+        fruit_est = live_fruit_pose_update()
         print("The detected fruit position: {fruit_est}")
 
         # check whetehr there are obstacles found
@@ -516,9 +558,8 @@ class Operate:
                 obstacle_fruit_x= fruit_est[key]['x']
                 obstacle_fruit_y= fruit_est[key]['y']
 
-                obstacle_fruit_x= round_nearest(obstacle_fruit_x, 0.4)
-                obstacle_fruit_y= round_nearest(obstacle_fruit_y, 0.4)
-
+                obstacle_fruit_x= dstar.round_nearest(obstacle_fruit_x, 0.4)
+                obstacle_fruit_y= dstar.round_nearest(obstacle_fruit_y, 0.4)
                 obstacle_fruit_coord= np.array([obstacle_fruit_x,obstacle_fruit_y])
                 
                 if self.spoofed_obs:
@@ -535,17 +576,17 @@ class Operate:
         print(f"Update flag: {obstacles_found_flag}")
 
         if obstacles_found_flag: 
-            spoofed_ox, spoofed_oy = generate_spoofed_obs(self.spoofed_obs)
+            spoofed_ox, spoofed_oy = dstar.generate_spoofed_obs(self.spoofed_obs)
             self.ox.extend(spoofed_ox)
             self.oy.extend(spoofed_oy)
             self.path_planning = dstar(self.ox, self.oy)
             
             curr_pose = self.ekf.robot.state.squeeze().tolist()
-            x = round_nearest(curr_pose[0], 0.2)
-            y = round_nearest(curr_pose[1], 0.2)
+            x = dstar.round_nearest(curr_pose[0], 0.2)
+            y = dstar.round_nearest(curr_pose[1], 0.2)
             curr_pose = [x, y]
             
-            sx, sy, gx, gy, fx, fy, face_angle = generate_points_L3(curr_pose, self.fruit_goals_remain, aruco_true_pos, self.spoofed_obs)
+            sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(curr_pose, self.fruit_goals_remain, aruco_true_pos, self.spoofed_obs)
                 
             # generate new path, continued from before meeting obstacles
             waypoints_list_new = []
@@ -617,9 +658,6 @@ class Operate:
     
 ########################## ROBOT DRIVE FUNCTIONS FOR OPERATE CLASS #####################
 
-# TODO add fruit_detect_obstacle
-
-
     # drive to a waypoint from current position
     def drive_to_point(self, waypoint, canvas):
         '''
@@ -645,6 +683,8 @@ class Operate:
 
         # print(f' curr orientation {robot_pose[2]}, angle_towaypt {angle_to_waypt}, turning_angle {turning_angle}')
         turn_drive_meas = self.robot_move_rotate(turning_angle)
+
+        # TODO cheryl perform live update of the fruit det
         self.fruit_detect_obstacle()
 
         time.sleep(0.5)
@@ -676,25 +716,21 @@ class Operate:
         return turn_drive_meas, straight_drive_meas
     
    ######################################################### 
-    # TODO nyoom nyoom
     def robot_move_rotate(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0, rotate_speed_offset=0.05):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
-
         '''
         wheel_rot_speed_big = 0.5
         wheel_rot_speed_small = 0.6
         # global robot_pose
 
         ticks_per_revolution = 20
-        wheel_diameter = 68e-3            # yoinked from cytron
+        wheel_diameter = 68e-3            
         baseline = self.baseline
 
-        # clamp angle between -180 to 180 deg 
-        turning_angle = turning_angle % (2*np.pi) # shortcut to while loop deducting 2pi 
-        # if the angle is more than 180 deg, make this a negative angle instead 
-        turning_angle = turning_angle - 2*np.pi if turning_angle > np.pi else turning_angle
-        turning_angle_deg = turning_angle * 180 / np.pi
+        # # clamp angle between -180 to 180 deg 
+        turning_angle = clamp_angle(turning_angle)
+        turning_angle_deg = np.rad2deg(turning_angle)
 
         abs_turning_angle_deg = abs(turning_angle_deg)
         if abs_turning_angle_deg > 45:
@@ -713,76 +749,43 @@ class Operate:
         else: 
             wheel_rot_speed = wheel_rot_speed
 
-        # move the robot to perform rotation 
 
         # wheel circumference
         wheel_circum = np.pi * wheel_diameter
-        #  If the robot pivoted 360°, the distance traveled by each wheel 
-        # would be equal to the circumference of this pivot circle
+        # If the robot pivoted 360°, the distance traveled by each wheel = circumference of this pivot circle
         pivot_circum = np.pi * baseline 
         distance_per_wheel = abs(turning_angle / (2*np.pi)) * pivot_circum
-
         turning_time = distance_per_wheel/(self.scale * wheel_rot_speed)
 
         # distance each wheel must travel
         # distance_per_wheel = (baseline/2) * turning_angle
         turning_revolutions = distance_per_wheel / wheel_circum
+
+        # if turn_ticks has been given be default, none of the previous calculations matter anymore
         if turn_ticks != 0:
             num_ticks = turn_ticks
         else:
             num_ticks = np.round(abs((turning_revolutions * ticks_per_revolution) + tick_offset))
         
-        # manual override
         print(f' /// Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
-        # print(f"turning for {turning_time}s to {turning_angle_deg}")
 
-        # -- direction of wheels, depending on sign
-        if num_ticks != 0: # if the car is not going straight/has to turn
-            if (turning_angle) > 0: # turn left 
-                lv, rv = [-wheel_rot_speed, wheel_rot_speed+rotate_speed_offset]
-            elif turning_angle < 0: # turn right
-                lv, rv = [wheel_rot_speed+rotate_speed_offset, -wheel_rot_speed] 
-        else: 
-            lv, rv = [0.0, 0.0]
-        
-        turn_speeds = [lv, rv]
+        # assign speed direction according to sign of angle
+        turn_speeds = [-wheel_rot_speed, wheel_rot_speed] if turning_angle > 0 else [wheel_rot_speed, -wheel_rot_speed]
+        turn_speeds = [0.0, 0.0] if num_ticks == 0 else turn_speeds
 
         # alt nyoom 
-        initial_ticks = self.pibot_control.get_counter_values()
-        ticks_travelled_left, ticks_travelled_right = 0,0
-
-        if turning_angle != 0:
-            # NOTE: sandra tried moving this line into turn speeds
-            self.pibot_control.set_velocity(turn_speeds)
-
-            while True: 
-                self.take_pic()
-                # self.pibot_control.set_velocity(turn_speeds)
-                curr_ticks = self.pibot_control.get_counter_values()
-                ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-                ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-                # print(f"curr_ticks {curr_ticks}")
-
-                if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
-                    break
-                # self.draw(canvas)
-                # pygame.display.update()
-            self.pibot_control.set_velocity([0,0])
+        
+        print(turn_speeds)
+        drive_meas = self.control_tick(turn_speeds[0], turn_speeds[1], turning_time, num_ticks)
 
         # update own location only after finished driving
         time.sleep(0.5)
         self.take_pic()
-        turn_drive_meas = Drive(1*lv, 1*rv, turning_time)
+        # turn_drive_meas = Drive(turn_speeds[0], turn_speeds[1], turning_time)
         # print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
-        self.update_slam(turn_drive_meas)
-        turn_drive_meas = Drive(0.9*lv, 0.9*rv, turning_time)
-        # self.update_slam(turn_drive_meas)
+        self.update_slam_gui(drive_meas, canvas)
 
-        # update display 
-        self.draw(canvas)
-        pygame.display.update()
-
-        return turn_drive_meas 
+        return drive_meas 
 #####################################################
 
     # TODO nyoom nyoom 
@@ -805,46 +808,21 @@ class Operate:
 
         # time to drive straight for 
         drive_time = dist_to_waypt / (self.scale * wheel_lin_speed)
-        lv, rv = wheel_lin_speed, wheel_lin_speed
-        drive_speeds = [lv, rv] 
+        drive_speeds = [wheel_lin_speed, wheel_lin_speed] 
 
         # number of ticks to drive striaght for
         print(f'/// Driving for {num_ticks:.2f} ticks to {dist_to_waypt:.2f}')
         # print(f"driving for {drive_time}s")
 
-        # alt nyoom 
-        initial_ticks = self.pibot_control.get_counter_values()
-        ticks_travelled_left, ticks_travelled_right = 0,0
-        # NOTE : sandra tried moving the next line into the while loop
-        self.pibot_control.set_velocity(drive_speeds)
-
-        while True: 
-            # self.take_pic()
-            self.pibot_control.set_velocity(drive_speeds)
-            curr_ticks = self.pibot_control.get_counter_values()
-            # print(f"curr_ticks {curr_ticks}")
-
-            ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
-            ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            # self.draw(canvas)
-            # pygame.display.update()
-            if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks:
-                break
+        drive_meas = self.control_tick(drive_speeds[0], drive_speeds[1], drive_time, num_ticks)
         
-        self.pibot_control.set_velocity([0,0])
-
         # update own location only after finished driving
         time.sleep(0.5)
         self.take_pic()
-        straight_drive_meas = Drive(1.0*lv, 1.0*rv, drive_time)
-        # print(f'strdrv {straight_drive_meas.left_speed} {straight_drive_meas.right_speed} {straight_drive_meas.dt}')
-        self.update_slam(straight_drive_meas)
+        # straight_drive_meas = Drive(wheel_lin_speed, wheel_lin_speed, drive_time)
+        self.update_slam_gui(drive_meas, canvas)
 
-        # update display 
-        self.draw(canvas)
-        pygame.display.update()
-
-        return straight_drive_meas
+        return drive_meas
 
     def get_robot_pose(self):
         '''
@@ -854,18 +832,6 @@ class Operate:
         return self.ekf.robot.state.squeeze().tolist()
     
 ############################ WAYPOINT UPDATE AND SLAM HELPER FUNCTIONS FOR OPERATE CLASS ####################
-
-    # TODO added, not sure if i still need it, probably yes
-    def location_update(self, steps=2):
-        for _ in range(steps):
-            self.take_pic()
-            lv, rv = self.pibot_control.set_velocity([0, 0])
-            drive_meas = Drive(lv, rv, 0.0)
-            # self.update_slam(drive_meas)
-        
-            # update pygame display
-            self.draw(canvas)
-            pygame.display.update()
         
     # TODO dra dra modified
     def localise_rotate_robot(self, num_turns=0, wheel_rot_speed=0.5):
@@ -878,9 +844,19 @@ class Operate:
         # perform rotations and update location with each turn
         for i in range(num_turns):
             print(f'Rotation: {i}, Total turned: {turning_angle*i}')
-            self.robot_move_rotate(turning_angle=turning_angle, wheel_rot_speed=wheel_rot_speed)
+            
+            # fixed to turn 1 tick at a time 
+            small_rotate_drive_meas = self.robot_move_rotate(turn_ticks=1, turning_angle=turning_angle, wheel_rot_speed=wheel_rot_speed)
+
+            # taking a couple more pictures after stopping from rotation just to make sure
+            for _ in range(4):
+                self.take_pic()
+                drive_meas = Drive(0.0, 0.0, 0.0)
+                self.update_slam_gui(drive_meas, canvas)
+                time.sleep(0.1)
+
             print(f"Position after rotating: {self.get_robot_pose()}")
-            time.sleep(1)
+            time.sleep(0.5)
 
         # recover initial orientation prior to turning
         # self.robot_move_rotate(-turning_angle*num_turns, wheel_rot_speed=wheel_rot_speed)
@@ -1122,6 +1098,12 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
                 print('{}) {} at [{}, {}]'.format(n_fruit, fruit, np.round(fruit_true_pos[i][0], 1), np.round(fruit_true_pos[i][1], 1)))
         n_fruit += 1
 
+# clamps the angle in radians, to range of -pi to pi
+def clamp_angle(turning_angle_raw):
+    turning_angle = turning_angle_raw % (2*np.pi) # shortcut to while loop deducting 2pi from the angle
+    # if angle more than 180 deg, make a negative angle 
+    turning_angle = turning_angle - 2*np.pi if turning_angle > np.pi else turning_angle
+    return turning_angle
 ####################################### MAIN #####################################################
 
 if __name__ == "__main__":
