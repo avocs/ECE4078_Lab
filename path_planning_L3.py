@@ -655,8 +655,13 @@ class Operate:
         print(f"Post Turn Position: {robot_pose}\n")
         # print(f"Post Turn Position: {operate.ekf.robot.state.squeeze().tolist()}")
         # print(f"Position: {robot_pose[0]:.2f}, {robot_pose[1]:.2f}, {robot_pose[2] + turning_angle:.2f}")        
-                
-        # 2. Robot drives straight towards waypt
+
+        # 2. Before driving stright towards waypt, scan to check whether there is 
+        # new obstacles detected
+        self.fruit_detect_obstacle()
+
+
+        # 3. Robot drives straight towards waypt
         # ===============================================
         dist_to_waypt = math.hypot(x_dist_to_waypt, y_dist_to_waypt)
         print(f' --- dist to waypoint: {x_dist_to_waypt}, {y_dist_to_waypt}')
@@ -772,10 +777,14 @@ class Operate:
         # update own location only after finished driving
         time.sleep(0.5)
         self.take_pic()
-        turn_drive_meas = Drive(1*lv, 1*rv, turning_time)
+        # turn_drive_meas = Drive(1*lv, 1*rv, turning_time)  
+        turn_drive_meas = Drive(0.2*lv, 0.2*rv, turning_time)   
+ 
         # print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
         self.update_slam(turn_drive_meas)
-        turn_drive_meas = Drive(0.9*lv, 0.9*rv, turning_time)
+        #turn_drive_meas = Drive(0.9*lv, 0.9*rv, turning_time)
+        turn_drive_meas = Drive(lv/0.2, rv/0.2, turning_time)
+
         # self.update_slam(turn_drive_meas)
 
         # update display 
@@ -889,7 +898,7 @@ class Operate:
 
         return None
 
-
+    
     # NOTE: implement cv for checks
     def take_fruit_pic_and_estimate_fruit_pose(self, target_fruit, target_fruit_true_pos=None):
 
