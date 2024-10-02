@@ -62,8 +62,8 @@ class Cell:
         self.h = 0  # Heuristic cost from this cell to destination
 
 # Define the size of the grid
-ROW = 65
-COL = 65
+ROW = 66
+COL = 66
 
 # Defining Global Variables
 printingFlag = False
@@ -71,10 +71,11 @@ printingTestFlag = False
 plotFlag = True
 modificationFlag = False
 
-how_far_from_fruits = 0.35
+how_far_from_fruits = 0.3
 impactRadiusSize = 0.1
 spacing = 5
 divisor = 0.01
+thresholdDistance = 0.2
 
 
 '''
@@ -179,7 +180,7 @@ def main():
         
         count = 0
         for k in range(len(aruco_true_pos)):
-            if distances[k] <= 0.3:
+            if distances[k] <= thresholdDistance:
                 count += 1
         
         if count >= 1:
