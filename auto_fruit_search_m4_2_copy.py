@@ -532,6 +532,7 @@ class Operate:
     def manual_fruit_search(self, canvas):
         if self.command['manual_fruit_search']:
             print(f"Starting manual_fruit_search..")
+            point_counter = 0
             while True:
                 # enter the waypoints
                 # instead of manually enter waypoints in command line, you can get coordinates by clicking on a map (GUI input)
@@ -560,15 +561,17 @@ class Operate:
 
                 # robot tries to drive to the waypoint
                 print("\n---------------------------------------")
-                print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {self.waypoints_list[0][0]}")
+                # print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {self.waypoints_list[0][0]}")
                 _ , _ = self.drive_to_point(dest_coord, canvas)
                 robot_pose = self.get_robot_pose()
-                print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
-                self.update_slam_flag = True
-                self.localise_rotate_robot()
-                self.update_slam_flag = False
+                # print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
+                if point_counter != 0:
+                    self.update_slam_flag = True
+                    self.localise_rotate_robot()
+                    self.update_slam_flag = False
                 self.record_data()
-                print()
+                point_counter += 1
+                # print()
                         
                 #         # remove that waypoint off the waypoint list
                 #         self.waypoints_list[0].pop(0)
@@ -595,6 +598,7 @@ class Operate:
                 # exit
                 uInput = input("Add a new waypoint? [Y/N]")
                 if uInput.lower() == 'n':
+                    self.command['manual_fruit_search'] = False
                     break
 
 
