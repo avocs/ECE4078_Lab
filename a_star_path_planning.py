@@ -51,6 +51,8 @@ import heapq
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
+import json
+import ast
 
 # Define the Cell class
 class Cell:
@@ -76,6 +78,8 @@ impactRadiusSize = 0.1
 spacing = 5
 divisor = 0.01
 thresholdDistance = 0.2
+map_file = 'testingmap1.txt'
+segementedFile = True
 
 
 '''
@@ -97,24 +101,42 @@ def main():
     # Alphabetical Names of fruits
     fruits_list=  ['redapple', 'greenapple', 'orange', 'mango', 'capsicum']
 
-    # True Position of fruits
-    fruits_true_pos=  [[-0.4,  0  ],
-                       [ 1.4, -0.8],
-                       [ 0.8, -0.4],
-                       [-1.2, -1.2],
-                       [ 0.8,  0.8]]
-    
-    # True Position of Aruco Markers
-    aruco_true_pos=  [[   0,  0.2],
-                      [ 1.2,  0.4],
-                      [-1.2,  1  ],
-                      [-1  , -0.4],
-                      [-1  , -1  ],
-                      [-1  ,  0.2],
-                      [ 0.4, -0.8],
-                      [ 0.4,  0  ],
-                      [-0.4, -0.6],
-                      [ 1.6, -0.4]]
+    if segementedFile:
+        positions = read_positions(map_file)
+        aruco_true_pos = []
+        fruits_true_pos = []
+        # aruco_true_pos = np.zeros([10,2])
+        # fruits_true_pos = np.zeros([5,2])
+
+        for i in range(10):
+            aruco_true_pos.append(positions[i])
+
+        for i in range (10, 15):
+            fruits_true_pos.append(positions[i])
+
+        aruco_true_pos = [list(pos) for pos in aruco_true_pos]
+        fruits_true_pos = [list(fruit) for fruit in fruits_true_pos] 
+
+    else: # go to default
+
+        # True Position of fruits
+        fruits_true_pos=  [[-0.4,  0  ],
+                           [ 1.4, -0.8],
+                           [ 0.8, -0.4],
+                           [-1.2, -1.2],
+                           [ 0.8,  0.8]]
+        
+        # True Position of Aruco Markers
+        aruco_true_pos=  [[   0,  0.2],
+                          [ 1.2,  0.4],
+                          [-1.2,  1  ],
+                          [-1  , -0.4],
+                          [-1  , -1  ],
+                          [-1  ,  0.2],
+                          [ 0.4, -0.8],
+                          [ 0.4,  0  ],
+                          [-0.4, -0.6],
+                          [ 1.6, -0.4]]
     
     # Wanted Search List
     # search_list =   ['redapple', 'greenapple', 'orange']
@@ -237,6 +259,30 @@ def main():
     
     # Calling the plot function to fully plot the whole map out once all the paths are done
     plot_full_map(aruco_true_pos, fruits_copy)
+
+
+
+'''
+##################################################################################################
+##################################################################################################
+                                    READ TRUE MAP
+##################################################################################################
+##################################################################################################
+'''
+##################### 
+# READ TRUE MAP
+def read_positions(file_path):
+    # Open and read the file
+    with open(file_path, 'r') as file:
+        data = file.read()
+    
+    # Parse the string as JSON
+    positions_dict = json.loads(data)
+    
+    # Extract the positions (x, y) into a list
+    positions = [(item["x"], item["y"]) for item in positions_dict.values()]
+    
+    return positions
 
 
 
