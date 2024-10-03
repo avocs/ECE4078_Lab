@@ -73,12 +73,12 @@ printingTestFlag = False
 plotFlag = True
 modificationFlag = False
 
-how_far_from_fruits = 0.3
+how_far_from_fruits = 0.25
 impactRadiusSize = 0.1
 spacing = 5
 divisor = 0.01
 thresholdDistance = 0.2
-map_file = 'testingmap1.txt'
+map_file = 'fuck3.txt'
 segementedFile = True
 
 
@@ -139,8 +139,8 @@ def main():
                           [ 1.6, -0.4]]
     
     # Wanted Search List
-    # search_list =   ['redapple', 'greenapple', 'orange']
-    search_list =   ['redapple', 'capsicum', 'orange']
+    search_list =   ['redapple', 'greenapple', 'orange']
+    # search_list =   ['redapple', 'capsicum', 'orange']
     # search_list =   ['mango']
     search_index = []
     search_true_pos = []
@@ -198,18 +198,19 @@ def main():
         for j in range(len(aruco_true_pos)):
             value = calculate_h_value(row, col, aruco_true_pos[j])
             distances.append(value)
-            # print("Distance ", i, " ", value)
+            print("Distance ", i, " /", value)
         
         count = 0
         for k in range(len(aruco_true_pos)):
-            if distances[k] <= thresholdDistance:
+            if distances[k] <= thresholdDistance and distances[k] != 0:
                 count += 1
-        
+        print(count)
+
         if count >= 1:
             dest_grid = modify_destinations(dest_grid, grid)
-            # print("Came here!")
+            print("Came here!")
         else:
-            # print("Else!")
+            print("Else!")
             for l in range (len(dest_coord)):
             # print(dest_coord)
             # print(dest_coord[j])
@@ -220,6 +221,8 @@ def main():
                     dest_coord[l] -= how_far_from_fruits
                 dest_coord[l] = round(dest_coord[l], 2)
             dest_grid = convert_coord_to_grid(dest_coord)
+        
+        print(dest_coord)
 
         
 
@@ -245,6 +248,7 @@ def main():
         # Simplifying the waypoints by calling a simplified path
         if plotFlag:
             new_waypoints = simplify_path(waypoints_lists)
+            # new_waypoints = waypoints_lists
             plot_waypoints(new_waypoints)
         # waypoints = a_star_search_tolerated(grid, src_grid, dest_grid)
         # if plotFlag:
