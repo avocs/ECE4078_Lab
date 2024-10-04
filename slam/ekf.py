@@ -155,8 +155,9 @@ class EKF:
 
         self.P = F @ self.P @ F.T + Q
         # 1. Predict state by calling the drive function
-        self.set_state_vector(F @ x)
+        # self.set_state_vector(F @ x)
         self.robot.drive(drive_meas)
+
 
         # Get the current state
         # x_pred = self.get_state_vector()
@@ -213,6 +214,7 @@ class EKF:
 
         # Update the new state
         self.set_state_vector(x)
+        print(f"EKF.py correction pose {self.get_state_vector()[:3].flatten()}")
         # print(f"size x {np.size(x)}")
 
         # sigma k = (I - K * C) * (bar sigma k)
@@ -372,7 +374,7 @@ class EKF:
         rot_rect.center = rot_image.get_rect().center
         rot_image = rot_image.subsurface(rot_rect).copy()
         return rot_image       
-
+ 
     @staticmethod
     def make_ellipse(P):
         e_vals, e_vecs = np.linalg.eig(P)

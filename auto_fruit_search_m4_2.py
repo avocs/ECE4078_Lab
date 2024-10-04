@@ -46,7 +46,7 @@ class Operate:
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=1, kp=0.0001, ki=0, kd=0.001)  
+        self.pibot_control.set_pid(use_pid=0, kp=0.0001, ki=0, kd=0.001)  
 
         # Initialise SLAM parameters (M2)
         self.ekf = self.init_ekf(args.calib_dir, args.ip)
@@ -116,12 +116,14 @@ class Operate:
 
     # NOTE Drive by number of ticks continuously
     def control_tick(self, lv, rv, num_ticks):
+        self.control_clock = time.time()
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
+        print(f"Called to control tick")
 
         # this is basically the while true loop of the operate's main 
         while True: 
-            # call to operates take pic
+            # call to operate take pic
             self.take_pic()
 
             # call to control
@@ -132,10 +134,11 @@ class Operate:
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
             print(f"Curr ticks: {curr_ticks}")
             drive_meas = Drive(left_speed, right_speed, dt)
-            self.control_clock = time.time()
+            # self.control_clock = time.time()
 
             # call to update_slam
             self.slam_gui_update(drive_meas, canvas)
+            print(f"pose update: {self.get_robot_pose()}")
 
             if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks: 
                 break
@@ -162,7 +165,7 @@ class Operate:
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
             if ticks_travelled_left >= 1 and ticks_travelled_right >= 1:
                 break
-        self.pibot_control.set_velocity[0,0]
+        self.pibot_control.set_velocity([0,0])
         time.sleep(0.25)
     
         return None
@@ -204,7 +207,8 @@ class Operate:
             self.prev_pose = self.get_robot_pose()
             self.ekf.predict(drive_meas)                # perform prediction based on motion model
             self.guessed_pose = self.get_robot_pose()   # the guessed pose is blindly fixed on the motion model calculated pose
-
+            print(f"self.guessed_pose {self.guessed_pose}")
+            print(f"self.prev_pose {self.prev_pose}")
             # M3, disable updates to aruco markers if true map is loaded
             if self.command['load_true_map']:
                 self.notification = 'SLAM locates robot pose'
@@ -222,7 +226,7 @@ class Operate:
 
             else: 
                 # updates the robot location if it sees any arucos
-                # self.ekf.add_landmarks(measurements)
+                self.ekf.add_landmarks(measurements)
                 self.ekf.update(measurements)
 
                 # if there are more than 3 aruco markers, 
@@ -240,9 +244,12 @@ class Operate:
                     else:
                         print("-- Motion model Estimation")
                         xg,yg,thetag = self.guessed_pose
+                        print(f"new x, y {xg} {yg}")
+
                         # force the state to be the driving one 
                         self.ekf.robot.state[0,0], self.ekf.robot.state[1,0], self.ekf.robot.state[2,0] = xg,yg,thetag 
 
+        print(f"Final pred pose {self.get_robot_pose()}")
         return len(measurements)
 
         
@@ -369,10 +376,10 @@ class Operate:
                 self.command['wheel_speed'] = [-0.7, -0.7]
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                self.command['wheel_speed'] = [-0.5, 0.4]
+                self.command['wheel_speed'] = [-0.6, 0.6]
             # turn right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                self.command['wheel_speed'] = [0.4, -0.5]
+                self.command['wheel_speed'] = [0.6, -0.6]
             # stop
             elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 self.command['wheel_speed'] = [0, 0]
@@ -487,19 +494,21 @@ class Operate:
 
                     # robot tries to drive to the waypoint
                     print("\n----------------------------------------------------------")
-                    print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {self.waypoints_list[0][0]}")
-                    self.drive_to_point(self.waypoints_list[0][0], canvas)
+                    waypoint_to_go = self.waypoints_list[0][0]
+                    print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {waypoint_to_go}")
+                    self.drive_to_point(waypoint_to_go, canvas)
                     robot_pose = self.get_robot_pose()
 
                     print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
                     print()
                     
-
                     # localise self at every sub-waypoint except for first and last at that point
-                    if self.curr_waypoint_count > 1:
-                        self.localising_flag = True
-                        self.localise_rotate_robot()
-                        self.localising_flag = False
+                    while not self.is_close_to_waypoint(waypoint_to_go, self.get_robot_pose()):
+                        if self.curr_waypoint_count > 1:
+                            self.localising_flag = True
+                            self.localise_rotate_robot()
+                            self.localising_flag = False
+                            self.drive_to_point(waypoint_to_go, canvas)
 
                     # remove that waypoint off the waypoint list
                     self.waypoints_list[0].pop(0)
@@ -562,7 +571,7 @@ class Operate:
         return None
     
 
-    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0, rotate_speed_offset=0.05):
+    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.5, rotate_speed_offset=0.05):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
         '''
@@ -578,7 +587,6 @@ class Operate:
             tick_offset = 5
         else: 
             tick_offset = 0
-
 
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
@@ -603,7 +611,8 @@ class Operate:
         turn_speeds = [0.0, 0.0] if num_ticks == 0 else turn_speeds
 
         # drive by ticks, updating slam throughout
-        self.control_tick(turn_speeds[0], turn_speeds[1], num_ticks)
+        if num_ticks != 0:
+            self.control_tick(turn_speeds[0], turn_speeds[1], num_ticks)
 
         return None
 
@@ -630,7 +639,8 @@ class Operate:
         print(f'/// Driving for {num_ticks:.2f} ticks to {dist_to_waypt:.2f}')
 
         # Drive to point, updating slam throughout
-        self.control_tick(drive_speeds[0], drive_speeds[1], num_ticks)
+        if num_ticks != 0:
+            self.control_tick(drive_speeds[0], drive_speeds[1], num_ticks)
         
 
         return None
@@ -662,7 +672,8 @@ class Operate:
             curr_best_pose = self.get_robot_pose()
 
             # this waits until the pose is stabilised within 0.005
-            if np.all(np.abs(curr_best_pose - robot_pose) < 0.005):
+            # scuffed ass np call
+            if np.all(np.abs(np.array(curr_best_pose) - np.array(robot_pose)) < 0.005):
                 print(":::: Pose Confirmed! :::::")
                 break
             robot_pose = curr_best_pose
@@ -724,10 +735,10 @@ class Operate:
 
 
     # NOTE: This checks if the robot is sort of at the waypoint. otherwise the robot will keep trying to drive
-    def is_close_to_waypoint(waypoint, current_pose):
+    def is_close_to_waypoint(self, waypoint, current_pose):
         x, y, _ = current_pose
         x_goal, y_goal = waypoint
-        threshold = 0.01
+        threshold = 0.05
 
         return abs(x - x_goal) <= threshold and abs(y - y_goal) <= threshold
     
@@ -799,10 +810,10 @@ class Operate:
                 self.command['wheel_speed'] = [-0.7, -0.7]
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                self.command['wheel_speed'] = [-0.5, 0.4]
+                self.command['wheel_speed'] = [-0.6, 0.6]
             # turn right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                self.command['wheel_speed'] = [0.4, -0.5]
+                self.command['wheel_speed'] = [0.6, -0.6]
             # stop
             elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 self.command['wheel_speed'] = [0, 0]

@@ -147,7 +147,7 @@ class Operate:
         return drive_meas
         
     # NOTE one stop call to update slam and the pygame window
-    def update_slam_gui(self, drive_meas, canvas):
+    def slam_gui_update(self, drive_meas, canvas):
         self.update_slam(drive_meas)
         self.draw(canvas)
         pygame.display.update()
@@ -409,76 +409,79 @@ class Operate:
         plt.show()    
 
     def generate_path_astar(self, search_list, fruits_list, fruits_true_pos):
-        '''
-        This is the a* algorithm implemented to generate waypoints towards all the fruits to search for
-        '''
-    # obtain a searching index and the corresponding true pos of the fruits for algorithm
-        search_index = []
-        print("Search List: ", search_list)
-        for i in range(len(search_list)):          ## The shopping list only, so 3
-            for j in range(len(fruits_list)):      ## The full list at 5
-                if search_list[i] == fruits_list[j]:
-                    search_index.append(j)
+        self.waypoints_list=astar.main()
 
-        search_true_pos = []        # list of the true poses of the fruits in the search list
-        for i in range(len(search_index)):
-            search_true_pos.append(fruits_true_pos[search_index[i]])
-        fruits_copy = copy.deepcopy(fruits_true_pos.tolist())
+    # def generate_path_astar(self, search_list, fruits_list, fruits_true_pos):
+    #     '''
+    #     This is the a* algorithm implemented to generate waypoints towards all the fruits to search for
+    #     '''
+    # # obtain a searching index and the corresponding true pos of the fruits for algorithm
+    #     search_index = []
+    #     print("Search List: ", search_list)
+    #     for i in range(len(search_list)):          ## The shopping list only, so 3
+    #         for j in range(len(fruits_list)):      ## The full list at 5
+    #             if search_list[i] == fruits_list[j]:
+    #                 search_index.append(j)
 
-        src_coord = [0,0]  
-        waypoints = []  
-        self.waypoints_list = []
+    #     search_true_pos = []        # list of the true poses of the fruits in the search list
+    #     for i in range(len(search_index)):
+    #         search_true_pos.append(fruits_true_pos[search_index[i]])
+    #     fruits_copy = copy.deepcopy(fruits_true_pos.tolist())
 
-        for i in range(len(search_list)):
-            # define one fruit as the destination, from the start of the search list
-            grid_src = astar.convert_coord_to_grid(src_coord)
-            dest_coord = search_true_pos[i]
-                 # Call the Convert Coordinates to Grid Function to convert dest_coord to dest_grid
-            dest_grid = astar.convert_coord_to_grid(dest_coord)
-            print("Dest Grid: ", dest_grid)
+    #     src_coord = [0,0]  
+    #     waypoints = []  
+    #     self.waypoints_list = []
+
+    #     for i in range(len(search_list)):
+    #         # define one fruit as the destination, from the start of the search list
+    #         grid_src = astar.convert_coord_to_grid(src_coord)
+    #         dest_coord = search_true_pos[i]
+    #              # Call the Convert Coordinates to Grid Function to convert dest_coord to dest_grid
+    #         dest_grid = astar.convert_coord_to_grid(dest_coord)
+    #         print("Dest Grid: ", dest_grid)
             
-            # Call the Modify Obstacles Function to modify the grid every new run. Setting the current destination as an obstacle and the next destination as not an obstacle
-            grid = astar.modify_obstacles(aruco_true_pos.tolist(), search_index[i], fruits_true_pos.tolist())
+    #         # Call the Modify Obstacles Function to modify the grid every new run. Setting the current destination as an obstacle and the next destination as not an obstacle
+    #         grid = astar.modify_obstacles(aruco_true_pos.tolist(), search_index[i], fruits_true_pos.tolist())
             
-            distances = []
-            # print(search_index)
-            col = fruits_true_pos[search_index[i]][0]
-            row = fruits_true_pos[search_index[i]][1]
-            for j in range(len(aruco_true_pos)):
-                value = astar.calculate_h_value(row, col, aruco_true_pos[j])
-                distances.append(value)
-                # print("Distance ", i, " ", value)
+    #         distances = []
+    #         # print(search_index)
+    #         col = fruits_true_pos[search_index[i]][0]
+    #         row = fruits_true_pos[search_index[i]][1]
+    #         for j in range(len(aruco_true_pos)):
+    #             value = astar.calculate_h_value(row, col, aruco_true_pos[j])
+    #             distances.append(value)
+    #             # print("Distance ", i, " ", value)
             
-            count = 0
-            for k in range(len(aruco_true_pos)):
-                if distances[k] <= 0.3:
-                    count += 1
+    #         count = 0
+    #         for k in range(len(aruco_true_pos)):
+    #             if distances[k] <= 0.3:
+    #                 count += 1
             
-            if count >= 1:
-                dest_grid = astar.modify_destinations(dest_grid, grid)
-                # print("Came here!")
-            else:
-                # print("Else!")
-                for l in range (len(dest_coord)):
-                # print(dest_coord)
-                # print(dest_coord[j])
-                    if dest_coord[l] < 0:
-                        dest_coord[l] += astar.how_far_from_fruits
+    #         if count >= 1:
+    #             dest_grid = astar.modify_destinations(dest_grid, grid)
+    #             # print("Came here!")
+    #         else:
+    #             # print("Else!")
+    #             for l in range (len(dest_coord)):
+    #             # print(dest_coord)
+    #             # print(dest_coord[j])
+    #                 if dest_coord[l] < 0:
+    #                     dest_coord[l] += astar.how_far_from_fruits
                         
-                    else:
-                        dest_coord[l] -= astar.how_far_from_fruits
-                    dest_coord[l] = round(dest_coord[l], 2)
-                dest_grid = astar.convert_coord_to_grid(dest_coord)
+    #                 else:
+    #                     dest_coord[l] -= astar.how_far_from_fruits
+    #                 dest_coord[l] = round(dest_coord[l], 2)
+    #             dest_grid = astar.convert_coord_to_grid(dest_coord)
             
-            waypoints = astar.a_star_search(grid, grid_src, dest_grid)
-            simplified_waypoints = astar.simplify_path(waypoints)
-            self.waypoints_list.append(simplified_waypoints)
-            astar.plot_waypoints(simplified_waypoints)
-            dest_coord = simplified_waypoints[-1]
-            src_coord = dest_coord
-                # Feedback
-        # print(f"Path generated: {self.waypoints_list}") 
-        astar.plot_full_map(aruco_true_pos, fruits_copy)
+    #         waypoints = astar.a_star_search(grid, grid_src, dest_grid)
+    #         simplified_waypoints = astar.simplify_path(waypoints)
+    #         self.waypoints_list.append(simplified_waypoints)
+    #         astar.plot_waypoints(simplified_waypoints)
+    #         dest_coord = simplified_waypoints[-1]
+    #         src_coord = dest_coord
+    #             # Feedback
+    #     # print(f"Path generated: {self.waypoints_list}") 
+    #     astar.plot_full_map(aruco_true_pos, fruits_copy)
         # self.display_map(aruco_true_pos, fruits_copy)
 
 ################################ MAIN ALGORITHM ########################################
@@ -640,7 +643,7 @@ class Operate:
         self.take_pic()
         # turn_drive_meas = Drive(turn_speeds[0], turn_speeds[1], turning_time)
         # print(f'turndrv {turn_drive_meas.left_speed} {turn_drive_meas.right_speed} {turn_drive_meas.dt}')
-        self.update_slam_gui(drive_meas, canvas)
+        self.slam_gui_update(drive_meas, canvas)
 
         return drive_meas 
 #####################################################
@@ -678,7 +681,7 @@ class Operate:
         time.sleep(0.5)
         self.take_pic()
         # straight_drive_meas = Drive(wheel_lin_speed, wheel_lin_speed, drive_time)
-        self.update_slam_gui(drive_meas, canvas)
+        self.slam_gui_update(drive_meas, canvas)
 
         return drive_meas
 
@@ -709,7 +712,7 @@ class Operate:
             for _ in range(4):
                 self.take_pic()
                 drive_meas = Drive(0.0, 0.0, 0.0)
-                self.update_slam_gui(drive_meas, canvas)
+                self.slam_gui_update(drive_meas, canvas)
                 time.sleep(0.1)
 
             print(f"Position after rotating: {self.get_robot_pose()}")
@@ -939,7 +942,7 @@ def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     print("Search order:")
     n_fruit = 1
     for fruit in search_list:
-        for i in range(5):
+        for i in range(len(fruit_list)):
             if fruit == fruit_list[i]:
                 print('{}) {} at [{}, {}]'.format(n_fruit, fruit, np.round(fruit_true_pos[i][0], 1), np.round(fruit_true_pos[i][1], 1)))
         n_fruit += 1
@@ -1010,7 +1013,7 @@ if __name__ == "__main__":
         operate.take_pic()
         drive_meas = operate.control()
         operate.detect_object()
-        operate.update_slam_gui(drive_meas,canvas)
+        operate.slam_gui_update(drive_meas,canvas)
 
         # upon pressing 'w', this function completely takes over
         operate.auto_fruit_search(canvas)
