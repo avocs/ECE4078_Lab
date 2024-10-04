@@ -64,10 +64,13 @@ class Cell:
         self.h = 0  # Heuristic cost from this cell to destination
 
 # Define the size of the grid
-ROW = 66
-COL = 66
+ROW = 33
+COL = 33
 
 # Defining Global Variables
+global printingFlag, printingTestFlag, plotFlag, modificationFlag
+global how_far_from_fruits, impactRadiusSize, spacing, divisor, thresholdDistance
+global segementedFile
 printingFlag = False
 printingTestFlag = False
 plotFlag = True
@@ -75,10 +78,11 @@ modificationFlag = False
 
 how_far_from_fruits = 0.3
 impactRadiusSize = 0.1
-spacing = 5
+spacing = 10
 divisor = 0.01
-thresholdDistance = 0.2
-map_file = 'testingmap1.txt'
+thresholdDistance = 0
+# map_file = 'testingmap1.txt'
+map_file = 'fuck4.txt'
 segementedFile = True
 
 
@@ -99,7 +103,9 @@ def main():
     '''
 
     # Alphabetical Names of fruits
-    fruits_list=  ['redapple', 'greenapple', 'orange', 'mango', 'capsicum']
+    # fruits_list=  ['redapple', 'greenapple', 'orange', 'mango', 'capsicum']
+    fruits_list=  ['redapple', 'greenapple', 'orange']
+
 
     if segementedFile:
         positions = read_positions(map_file)
@@ -111,7 +117,7 @@ def main():
         for i in range(10):
             aruco_true_pos.append(positions[i])
 
-        for i in range (10, 15):
+        for i in range (10, 13):
             fruits_true_pos.append(positions[i])
 
         aruco_true_pos = [list(pos) for pos in aruco_true_pos]
@@ -139,11 +145,12 @@ def main():
                           [ 1.6, -0.4]]
     
     # Wanted Search List
-    # search_list =   ['redapple', 'greenapple', 'orange']
-    search_list =   ['redapple', 'capsicum', 'orange']
+    search_list =   ['orange', 'redapple']
+    # search_list =   ['redapple', 'capsicum', 'orange']
     # search_list =   ['mango']
     search_index = []
     search_true_pos = []
+    all_fruits_waypoints_list = []
 
     # Making a deep copy of fruits to be used in plotting and modifying obstacles
     fruits_copy = copy.deepcopy(fruits_true_pos)
@@ -231,9 +238,6 @@ def main():
         ##################### 
 
         # Calling the plot waypoints function to plot the waypoints on a graph for better visualisation
-        # print(plotFlag)
-        # if plotFlag:
-        #     plot_waypoints(waypoints)
         if modificationFlag:
             modi_waypoints = modify_waypoints(waypoints, search_true_pos[i])
             waypoints_lists = [waypoint.tolist() for waypoint in modi_waypoints]
@@ -245,6 +249,7 @@ def main():
         # Simplifying the waypoints by calling a simplified path
         if plotFlag:
             new_waypoints = simplify_path(waypoints_lists)
+            all_fruits_waypoints_list.append(new_waypoints)
             plot_waypoints(new_waypoints)
         # waypoints = a_star_search_tolerated(grid, src_grid, dest_grid)
         # if plotFlag:
@@ -259,6 +264,8 @@ def main():
     
     # Calling the plot function to fully plot the whole map out once all the paths are done
     plot_full_map(aruco_true_pos, fruits_copy)
+
+    return all_fruits_waypoints_list
 
 
 
@@ -912,7 +919,8 @@ def plot_full_map(aruco_true_pos, fruits_copy):
         plt.annotate(f'aruco_{i}', (x, y), textcoords="offset points", xytext=(0,-10), ha='center')
 
     # fruit_color = [[128, 0, 0], [155, 255, 70], [255, 85, 0], [255, 180, 0], [0, 128, 0]]
-    fruit_colour = ["red", "cyan", "orange", "yellow", "green"]
+    # fruit_colour = ["red", "cyan", "orange", "yellow", "green"]
+    fruit_colour = ["red", "cyan", "orange"]
 
     for i in range(len(fruits_copy)):
         x_fruits.append(fruits_copy[i][0])

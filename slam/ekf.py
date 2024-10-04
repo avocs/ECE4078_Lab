@@ -31,7 +31,7 @@ class EKF:
         
         # NODE
         self.val_offset = 0.23
-        self.val_offset_enabled = True
+        self.val_offset_enabled = False
         
     def reset(self):
         self.robot.state = np.zeros((3, 1))
@@ -98,6 +98,7 @@ class EKF:
     # time to mod this guy 
     def set_state_vector(self, state):
         self.robot.state = state[0:3,:]
+        # print(self.robot.state)
         self.markers = np.reshape(state[3:,:], (2,-1), order='F')
         # TODO 
         # print(f'markers:{self.markers}')
@@ -154,6 +155,7 @@ class EKF:
 
         self.P = F @ self.P @ F.T + Q
         # 1. Predict state by calling the drive function
+        self.set_state_vector(F @ x)
         self.robot.drive(drive_meas)
 
         # Get the current state
@@ -172,7 +174,6 @@ class EKF:
 
         # Update the predicted state
         # self.set_state_vector(x_pred)    
-        # self.set_state_vector(F @ x)
 
 
     # the update/correct step of EKF
@@ -212,6 +213,7 @@ class EKF:
 
         # Update the new state
         self.set_state_vector(x)
+        # print(f"size x {np.size(x)}")
 
         # sigma k = (I - K * C) * (bar sigma k)
         # bar sigma k = P               lecture notes = code
