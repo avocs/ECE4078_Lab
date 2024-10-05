@@ -32,6 +32,7 @@ import a_star_path_planning as astar
 import d_star_lite_path_planning as dstar
 from d_star_lite_path_planning import Node, DStarLite
 import object_pose_estyolo_M4 as obj_est
+import object_pose_estyolo_M4 as live_fruit_pose_update
 
 
 class Operate:
@@ -547,7 +548,70 @@ class Operate:
         self.pred_fname = self.output.write_image(self.file_output[0],
                                                         self.file_output[1])
 
+        # estimate the fruit position
+        fruit_pos= live_fruit_pose_update()
 
+        update_flag= False
+        # check if the fruit is in the list
+        for label, pose in fruit_pos.items():
+            if label not in fruit_list: 
+                fruit_x= pose['x']
+                fruit_y= pose['y']
+
+                #not sure hoe to change this
+                # snap to grid
+                fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
+                fruit_y = dstar.round_nearest(fruit_y, 0.4)
+                
+                fruit_coord= np.array([fruit_x,fruit_y])
+                print(f"Fruit detected: {fruit_coord}")
+
+                if self.spoofed_obs:
+                    if not(fruit_coord==self.spoofed_obs).all(1).any():
+                        self.spoofed_obs.append(fruit_coord)
+                        print(f"New obstacle detected at position:{fruit_coord}")
+                        update_flag = True
+
+                    else: 
+                        self.spoofed_obs.append(fruit_coord)
+                        print(f"New obstacle detected at position:{fruit_coord}")
+                        update_flag = True
+
+                if update_flag:
+                    obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
+                    self.ox.extend(obs_x)
+                    self.oy.extend(obs_y)
+                    self.path_algo= DStarLite(self.ox,self.oy)
+
+
+                    # not sure how the rounding works
+                    current_pose= self.get_robot_pose
+                    current_x= current_pose[0]
+                    current_y= current_pose[1]
+                    rounded_x= dstar.round_nearest(current_x,0.2)
+                    rounded_y= dstar.round_nearest(current_y,0.2)
+                    current_pose= [rounded_x,rounded_y]
+
+                    sx, sy, gx, gy, fx, fy, face_angle= dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
+
+                    # generate new path
+                    new_waypoints_list= []
+                    for i in range (len(sx)):
+                        _, pathx, pathy = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
+                        pathx.pop(0)
+                        pathy.pop(0)
+                        temp = [[x/10.0,y/10.0] for x, y in zip(pathx, pathy)]
+                        self.new_waypoints_list.append(temp)
+
+                    self.waypoints_list= new_waypoints_list
+                    self.waypoints_list[0].insert(0,current_pose)
+
+                    print(f"New path with obstacles generated: {self.waypoints_list}")
+
+                return update_flag
+
+
+### see if wanna include command
         # upon pressing 'p', this calls run inference on the current image, obtains bounding boxes and 
         # an output image with the bbox drawn, saved into self.obj_detector_pred and self.fin_prediction_img respectively
         if self.command['run_obj_detector'] and self.obj_detector is not None:
@@ -562,6 +626,7 @@ class Operate:
 
 
         # whatever the pressing N does 
+
 
 
 ################################ MAIN ALGORITHMS ########################################
