@@ -36,7 +36,6 @@ def compare_coordinates(node1: Node, node2: Node):
     return node1.x == node2.x and node1.y == node2.y
 
 
-
 class DStarLite:
 
     # Please adjust the heuristic function (h) if you change the list of

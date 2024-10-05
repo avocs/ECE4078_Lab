@@ -172,7 +172,7 @@ def merge_estimations(object_map):
     return object_est, fruit_est
 
 
-
+# NOTE what the fuck is going on here
 def live_fruit_pose_update(self):
     fileK = "{}intrinsic.txt".format('./calibration/param/')
     camera_matrix = np.loadtxt(fileK, delimiter=',')    

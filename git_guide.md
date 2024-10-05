@@ -8,7 +8,8 @@ git push origin <branchname>  (sandra pushes this to origin main)
 
 
 # Git set up
-1. check version: git --version
+1. check version: `git version`
+2. if not found, just install git online 
 
 # Cloning Repositories
 
@@ -29,14 +30,28 @@ nothing to commit, working tree clean
 
 # Creating and coding in a branch 
 
-1. git branch <branch_name> 
-2. check if branch successfully created: git branch 
-3. git checkout <branch_name>           ------ dont forget this step!!! 
-4. git status to ensure                 ------ this is very important!!! 
+1. `git branch <branch_name>` 
+2. check if branch successfully created: `git branch` 
+3. `git checkout <branch_name>`           ------ dont forget this step!!! 
+    `git switch <branch_name>`            ------ alternative method       
+    `git switch -c <local_branch_name> origin/<remote_branch_name>` 
+
+**** `git switch` was added in Git 2.23, prior to this `git checkout` was used to switch branches.
+**** To work on a branch you need to create a local branch from it. This is done with the Git command switch (since Git 2.23) by giving it the name of the remote branch
+**** if you use the second method, the branch name created is assumed to track the changes in the remote branch in the same name. the third method is just there in case you want your local branch to be a different name from the remote branch
+
+
+4. `git status` or `git branch` to ensure                 ------ this is very important!!! 
 5. go ham with the code changes, just make sure u stay on the correct branch
 
 **git won't let you change to a branch when you have unsaved changes in the current branch within the local repo
 **the local repo is a hidden .git file 
+
+
+# Moving to a remote branch
+1. `git fetch`            ---- to retrieve remote branches
+2. `git branch -v -a`     ---- to see the branches you've retrieved
+
 
 
 **refer to the block diagram in the lesson for path 
