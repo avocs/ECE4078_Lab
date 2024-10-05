@@ -1,5 +1,7 @@
 # this unit can go fuck itself 
-
+# Latest version of the L2 code
+# Last update: 05/10/2024
+# Runs the motion model by taking small increments of time up until the encoder ticks tell it to stop
 
 
 # basic python packages
@@ -19,7 +21,6 @@ from slam.aruco_sensor import ArucoSensor
 
 # import CV components (M3)
 from YOLOv8.detector import ObjectDetector
-
 # M4 - Autonomous fruit searching
 import ast
 import json
@@ -70,20 +71,22 @@ class Operate:
         self.notification = 'Press ENTER to start SLAM'
         self.count_down = 600 # 10 min timer 
         self.start_time = time.time()
-        self.control_clock = time.time()
+        # NOTE changed out time.time to time.perfcounter for more accurate 
+        # self.control_clock = time.time()
+        self.control_clock = time.perf_counter()
         self.img = np.zeros([480,640,3], dtype=np.uint8)
         self.aruco_img = np.zeros([480,640,3], dtype=np.uint8)
         self.obj_detector_pred = np.zeros([480,640], dtype=np.uint8)        
         self.bg = pygame.image.load('ui/gui_mask.jpg')
 
-        # TODO sandra: aux objects/vars added for m4
+        # Aux objects/vars added for m4
         self.waypoints_list = []
         self.curr_waypoint_count = 0
         self.localising_flag = False
         self.prev_pose = np.zeros((3,1))
         self.guessed_pose = np.zeros((3,1))
         self.pos_read_flag = False
-        self.camera_offset = 0.00                 # measured from front of car to front of ECE4078 label on car
+        self.camera_offset = 0.00   # NOTE: measured from front of car to front of ECE4078 label on car
         self.wheel_diameter = 68e-3 # yoinked from cytron 
         self.ticks_per_revolution = 20
 
@@ -116,10 +119,12 @@ class Operate:
 
     # NOTE Drive by number of ticks continuously
     def control_tick(self, lv, rv, num_ticks):
-        self.control_clock = time.time()
+        # This file now contains time.sleeps throughout, so the timer would have to be reset at the start
+        # so that the small increments of dt would be more accurate
+        # self.control_clock = time.time()
+        self.control_clock = time.perf_counter()
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
-        print(f"Called to control tick")
 
         # this is basically the while true loop of the operate's main 
         while True: 
@@ -128,13 +133,15 @@ class Operate:
 
             # call to control
             left_speed, right_speed = self.pibot_control.set_velocity([lv, rv])
-            dt = time.time() - self.control_clock
+            # dt = time.time() - self.control_clock
+            dt = time.perf_counter() - self.control_clock
             curr_ticks = self.pibot_control.get_counter_values()
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
             print(f"Curr ticks: {curr_ticks}")
             drive_meas = Drive(left_speed, right_speed, dt)
             # self.control_clock = time.time()
+            self.control_clock = time.perf_counter()
 
             # call to update_slam
             self.slam_gui_update(drive_meas, canvas)
@@ -225,7 +232,7 @@ class Operate:
             #         self.notification = 'Insufficient markers for updating SLAM'
 
             else: 
-                # updates the robot location if it sees any arucos
+                # corrects the robot location if it sees any arucos
                 self.ekf.add_landmarks(measurements)
                 self.ekf.update(measurements)
 
@@ -475,7 +482,6 @@ class Operate:
     def generate_path_astar(self, search_list, fruits_list, fruits_true_pos):
         self.waypoints_list = astar.main()
 
-
 ################################ MAIN ALGORITHM ########################################
 
     def auto_fruit_search(self, canvas):
@@ -489,7 +495,6 @@ class Operate:
                 curr_fruit = len(search_list) - len(self.waypoints_list) + 1
 
                 if self.waypoints_list[0]:
-                    # waypoint_to_go = self.waypoints_list[0][0]
                     self.curr_waypoint_count += 1
 
                     # robot tries to drive to the waypoint
@@ -571,7 +576,7 @@ class Operate:
         return None
     
 
-    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.5, rotate_speed_offset=0.05):
+    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.4, rotate_speed_offset=0.05):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
         '''
@@ -672,12 +677,12 @@ class Operate:
             curr_best_pose = self.get_robot_pose()
 
             # this waits until the pose is stabilised within 0.005
-            # scuffed ass np call
+            # ---- scuffed ass np call
             if np.all(np.abs(np.array(curr_best_pose) - np.array(robot_pose)) < 0.005):
-                print(":::: Pose Confirmed! :::::")
+                print("::::: Pose Confirmed! :::::")
                 break
             robot_pose = curr_best_pose
-            time.sleep(0.08)
+            time.sleep(0.05)
             # the pose held by self.ekf.robot.state is now the confirmed pose 
         return robot_pose
     
@@ -693,7 +698,7 @@ class Operate:
         turning_angle = np.pi/24            # 1 tick increments      
         num_turns = int(2*np.pi / turning_angle)
         
-    # Method 1: some scuffed marker finding bullshit
+    # Method 1: some scuffed marker finding bullshit that is not implemented yet
 ##############################################################
 
         # while True:
@@ -729,10 +734,9 @@ class Operate:
 
             # printing pose 
             print(f"Position after rotating: {self.get_robot_pose()}")
-            time.sleep(0.5)
+            time.sleep(0.25)
         return None
     
-
 
     # NOTE: This checks if the robot is sort of at the waypoint. otherwise the robot will keep trying to drive
     def is_close_to_waypoint(self, waypoint, current_pose):
@@ -789,7 +793,6 @@ class Operate:
 
         measurements, aruco_img = self.aruco_sensor.detect_marker_positions(self.img)
 
-
         # visualise
         operate.draw(canvas)
         pygame.display.update()
@@ -797,7 +800,7 @@ class Operate:
         return measurements, aruco_img
         # return landmarks, detector_output,aruco_corners
         
-########################### NOTE: KEYBOARD OPERATION DONE HERE ##############################
+########################### KEYBOARD OPERATION DONE HERE ##############################
     
     # Keyboard control for Milestone 4 Level 2
     def update_keyboard_M4(self):
