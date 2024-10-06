@@ -45,7 +45,7 @@ class Robot:
         self.state[2] = self.state[2] % (2*np.pi)
         self.state[2] = self.state[2] - 2*np.pi if self.state[2] > np.pi else self.state[2]
 
-        print(f"robot.py Motion Model State {self.state}")
+        # print(f"robot.py Motion Model State {self.state}")
 
 
     def convert_wheel_speeds(self, left_speed, right_speed):

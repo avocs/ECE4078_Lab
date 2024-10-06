@@ -214,8 +214,7 @@ class EKF:
 
         # Update the new state
         self.set_state_vector(x)
-        print(f"EKF.py correction pose {self.get_state_vector()[:3].flatten()}")
-        # print(f"size x {np.size(x)}")
+        # print(f"EKF.py correction pose {self.get_state_vector()[:3].flatten()}")
 
         # sigma k = (I - K * C) * (bar sigma k)
         # bar sigma k = P               lecture notes = code
