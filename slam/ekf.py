@@ -312,7 +312,7 @@ class EKF:
         x_im = int(-x*m2pixel+w/2.0)
         y_im = int(y*m2pixel+h/2.0)
         return (x_im, y_im)
-
+    
     def draw_slam_state(self, res = (320, 500), not_pause=True):
         # Draw landmarks
         m2pixel = 100
@@ -352,8 +352,6 @@ class EKF:
         surface.blit(self.rot_center(self.pibot_pic, robot_theta*57.3),
                     (start_point_uv[0]-15, start_point_uv[1]-15))
         if self.number_landmarks() > 0:
-            # TODO delete later
-            # print(f'selftaglist: {self.taglist}')
             for i in range(len(self.markers[0,:])):
                 xy = (lms_xy[0, i], lms_xy[1, i])
                 coor_ = self.to_im_coor(xy, res, m2pixel)
@@ -364,6 +362,58 @@ class EKF:
                     surface.blit(self.lm_pics[-1],
                     (coor_[0]-5, coor_[1]-5))
         return surface
+
+    # def draw_slam_state(self, res = (320, 500), not_pause=True):
+    #     # Draw landmarks
+    #     m2pixel = 100
+    #     if not_pause:
+    #         bg_rgb = np.array([213, 213, 213]).reshape(1, 1, 3)
+    #     else:
+    #         bg_rgb = np.array([120, 120, 120]).reshape(1, 1, 3)
+    #     canvas = np.ones((res[1], res[0], 3))*bg_rgb.astype(np.uint8)
+    #     # in meters, 
+    #     lms_xy = self.markers[:2, :]
+    #     robot_xy = self.robot.state[:2, 0].reshape((2, 1))
+    #     lms_xy = lms_xy - robot_xy
+    #     robot_xy = robot_xy*0
+    #     robot_theta = self.robot.state[2,0]
+    #     # plot robot
+    #     start_point_uv = self.to_im_coor((0, 0), res, m2pixel)
+        
+    #     p_robot = self.P[0:2,0:2]
+    #     axes_len,angle = self.make_ellipse(p_robot)
+    #     canvas = cv2.ellipse(canvas, start_point_uv, 
+    #                 (int(axes_len[0]*m2pixel), int(axes_len[1]*m2pixel)),
+    #                 angle, 0, 360, (0, 30, 56), 1)
+    #     # draw landmards
+    #     if self.number_landmarks() > 0:
+    #         for i in range(len(self.markers[0,:])):
+    #             xy = (lms_xy[0, i], lms_xy[1, i])
+    #             coor_ = self.to_im_coor(xy, res, m2pixel)
+    #             # plot covariance
+    #             Plmi = self.P[3+2*i:3+2*(i+1),3+2*i:3+2*(i+1)]
+    #             axes_len, angle = self.make_ellipse(Plmi)
+    #             canvas = cv2.ellipse(canvas, coor_, 
+    #                 (int(axes_len[0]*m2pixel), int(axes_len[1]*m2pixel)),
+    #                 angle, 0, 360, (244, 69, 96), 1)
+
+    #     surface = pygame.surfarray.make_surface(np.rot90(canvas))
+    #     surface = pygame.transform.flip(surface, True, False)
+    #     surface.blit(self.rot_center(self.pibot_pic, robot_theta*57.3),
+    #                 (start_point_uv[0]-15, start_point_uv[1]-15))
+    #     if self.number_landmarks() > 0:
+    #         # TODO delete later
+    #         # print(f'selftaglist: {self.taglist}')
+    #         for i in range(len(self.markers[0,:])):
+    #             xy = (lms_xy[0, i], lms_xy[1, i])
+    #             coor_ = self.to_im_coor(xy, res, m2pixel)
+    #             try:
+    #                 surface.blit(self.lm_pics[self.taglist[i]-1],
+    #                 (coor_[0]-5, coor_[1]-5))
+    #             except IndexError:
+    #                 surface.blit(self.lm_pics[-1],
+    #                 (coor_[0]-5, coor_[1]-5))
+    #     return surface
 
     @staticmethod
     def rot_center(image, angle):

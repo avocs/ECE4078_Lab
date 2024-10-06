@@ -78,7 +78,7 @@ spacing = 10
 divisor = 0.01
 thresholdDistance = 0
 # map_file = 'testingmap1.txt'
-map_file = 'fuck5.txt'
+map_file = 'fuck6.txt'
 segementedFile = True
 numberOfFruits = 13
 
