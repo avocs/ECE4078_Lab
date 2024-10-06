@@ -86,7 +86,7 @@ class Operate:
         self.prev_pose = np.zeros((3,1))
         self.guessed_pose = np.zeros((3,1))
         self.pos_read_flag = False
-        self.camera_offset = 0.00   # NOTE: measured from front of car to front of ECE4078 label on car
+        self.camera_offset = 0.17   # NOTE: measured from front of car to front of ECE4078 label on car
         self.wheel_diameter = 68e-3 # yoinked from cytron 
         self.ticks_per_revolution = 20
 
@@ -138,14 +138,14 @@ class Operate:
             curr_ticks = self.pibot_control.get_counter_values()
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            print(f"Curr ticks: {curr_ticks}")
+            # print(f"Curr ticks: {curr_ticks}")
             drive_meas = Drive(left_speed, right_speed, dt)
             # self.control_clock = time.time()
             self.control_clock = time.perf_counter()
 
             # call to update_slam
             self.slam_gui_update(drive_meas, canvas)
-            print(f"pose update: {self.get_robot_pose()}")
+            # print(f"pose update: {self.get_robot_pose()}")
 
             if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks: 
                 break
@@ -173,18 +173,20 @@ class Operate:
             if ticks_travelled_left >= 1 and ticks_travelled_right >= 1:
                 break
         self.pibot_control.set_velocity([0,0])
+
+        # sleep between steps for 0.25s 
         time.sleep(0.25)
     
         return None
-            
+    
         
         
     # NOTE one stop call to update slam and the pygame window
     def slam_gui_update(self, drive_meas, canvas):
-        len_measurements = self.update_slam(drive_meas)
+        measurements = self.update_slam(drive_meas)
         self.draw(canvas)
         pygame.display.update()
-        return len_measurements
+        return measurements
 
     # camera control
     def take_pic(self):
@@ -210,12 +212,11 @@ class Operate:
         
         if self.ekf_on:
             
-            # stores the last pose into 'prev_pose'
             self.prev_pose = self.get_robot_pose()
             self.ekf.predict(drive_meas)                # perform prediction based on motion model
             self.guessed_pose = self.get_robot_pose()   # the guessed pose is blindly fixed on the motion model calculated pose
-            print(f"self.guessed_pose {self.guessed_pose}")
-            print(f"self.prev_pose {self.prev_pose}")
+            # print(f"self.guessed_pose {self.guessed_pose}")
+            # print(f"self.prev_pose {self.prev_pose}")
             # M3, disable updates to aruco markers if true map is loaded
             if self.command['load_true_map']:
                 self.notification = 'SLAM locates robot pose'
@@ -231,33 +232,42 @@ class Operate:
             #     else:
             #         self.notification = 'Insufficient markers for updating SLAM'
 
-            else: 
-                # corrects the robot location if it sees any arucos
+            # Recovered original update_slam
+            else:
                 self.ekf.add_landmarks(measurements)
                 self.ekf.update(measurements)
 
-                # if there are more than 3 aruco markers, 
-                if (len(measurements) >= 3):        # if there are more than 3 aruco markers in sight
-                    self.pos_read_flag = True       # the position to be read is the ekf corrected pose
-                    print("Reading SLAM position)")
+        return measurements
 
-                else: 
-                    self.pos_read_flag = False      # otherwise, position takes the motion model blind pose
-                    # if the robot is currently rotating on the spot
-                    if self.localising_flag:
-                        print("---- Localising")
-                        xp,yp,thetap = self.prev_pose   # the previous x and y is accessed and forced into state
-                        self.ekf.robot.state[0,0], self.ekf.robot.state[1,0] = xp, yp 
-                    else:
-                        print("-- Motion model Estimation")
-                        xg,yg,thetag = self.guessed_pose
-                        print(f"new x, y {xg} {yg}")
+            # else: 
+            #     # corrects the robot location if it sees any arucos
+            #     if (len(measurements) >= 2):
+            #         self.ekf.add_landmarks(measurements)
+            #         self.ekf.update(measurements)
+            #         print("Reading SLAM position)")
 
-                        # force the state to be the driving one 
-                        self.ekf.robot.state[0,0], self.ekf.robot.state[1,0], self.ekf.robot.state[2,0] = xg,yg,thetag 
+                # # if there are more than 3 aruco markers, 
+                # if (len(measurements) >= 2):        # if there are more than 3 aruco markers in sight
+                #     self.pos_read_flag = True       # the position to be read is the ekf corrected pose
+                #     print("Reading SLAM position)")
 
-        print(f"Final pred pose {self.get_robot_pose()}")
-        return len(measurements)
+                # else: 
+                #     self.pos_read_flag = False      # otherwise, position takes the motion model blind pose
+                #     # if the robot is currently rotating on the spot
+                #     if self.localising_flag:
+                #         print("---- Localising")
+                #         xp,yp,thetap = self.prev_pose   # the previous x and y is accessed and forced into state
+                #         self.ekf.robot.state[0,0], self.ekf.robot.state[1,0] = xp, yp 
+                #     else:
+                #         print("-- Motion model Estimation")
+                #         xg,yg,thetag = self.guessed_pose
+                #         print(f"new x, y {xg} {yg}")
+
+                #         # force the state to be the driving one 
+                #         self.ekf.robot.state[0,0], self.ekf.robot.state[1,0], self.ekf.robot.state[2,0] = xg,yg,thetag 
+
+        # print(f"Final pred pose {self.get_robot_pose()}")
+        # return len(measurements)
 
         
     # save SLAM map // unused for lvl2
@@ -484,7 +494,7 @@ class Operate:
 
 ################################ MAIN ALGORITHM ########################################
 
-    def auto_fruit_search(self, canvas):
+    def auto_fruit_search(self):
         '''
         Perform fruit search to all fruits in search list
         '''
@@ -498,22 +508,28 @@ class Operate:
                     self.curr_waypoint_count += 1
 
                     # robot tries to drive to the waypoint
-                    print("\n----------------------------------------------------------")
+                    
+                    print("\n\n----------------------------------------------------------")
                     waypoint_to_go = self.waypoints_list[0][0]
                     print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {waypoint_to_go}")
-                    self.drive_to_point(waypoint_to_go, canvas)
+                    self.drive_to_point(waypoint_to_go)
                     robot_pose = self.get_robot_pose()
 
                     print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
                     print()
                     
                     # localise self at every sub-waypoint except for first and last at that point
-                    while not self.is_close_to_waypoint(waypoint_to_go, self.get_robot_pose()):
-                        if self.curr_waypoint_count > 1:
-                            self.localising_flag = True
-                            self.localise_rotate_robot()
-                            self.localising_flag = False
-                            self.drive_to_point(waypoint_to_go, canvas)
+                    # while not self.is_close_to_waypoint(waypoint_to_go, self.get_robot_pose()):
+                    #     if self.curr_waypoint_count >= 1:
+                    #         print(f"\n\n///// Returning to waypoint {self.curr_waypoint_count}")
+                    #         self.localising_flag = True
+                    #         self.localise_rotate_robot()
+                    #         self.localising_flag = False
+                    #         self.drive_to_point(waypoint_to_go)
+
+                    # localise self at every sub-waypoint except for first
+                    if self.curr_waypoint_count >= 1:
+                        self.est_robot_pose()
 
                     # remove that waypoint off the waypoint list
                     self.waypoints_list[0].pop(0)
@@ -538,28 +554,28 @@ class Operate:
     
 ########################## ROBOT DRIVE FUNCTIONS FOR OPERATE CLASS #####################
     # drive to a waypoint from current position
-    def drive_to_point(self, waypoint, canvas):
+    def drive_to_point(self, waypoint):
         '''
         Function for robot to drive to a waypoint through the following procedures:
         1. Turn to waypoint
         2. Head straight to waypoint
         '''
         # compute x and y distance to waypoint
-        robot_pose = self.get_robot_pose()
-        print(f"Starting position: {robot_pose}")
+        x,y,theta = self.get_robot_pose()
+        print(f"Starting position: {self.get_robot_pose()}")
         print(f"Robot is driving!")
 
         # 1. Robot rotates, turning towards the waypoint
         # ===================================================
 
-        y_dist_to_waypt = waypoint[1] - (robot_pose[1] - self.camera_offset*np.sin(robot_pose[2]))
-        x_dist_to_waypt = waypoint[0] - (robot_pose[0] - self.camera_offset*np.cos(robot_pose[2]))
+        y_dist_to_waypt = waypoint[1] - (y - self.camera_offset*np.sin(theta))
+        x_dist_to_waypt = waypoint[0] - (x - self.camera_offset*np.cos(theta))
         angle_to_waypt = np.arctan2(y_dist_to_waypt, x_dist_to_waypt) # angle measured in rad, from theta = 0
         # this is the angle that the robot needs to turn, in radians. sign determines direction of turning
-        turning_angle = angle_to_waypt - robot_pose[2]         
+        turning_angle = angle_to_waypt - theta        
         self.rotate_drive(turning_angle)
 
-        time.sleep(0.5)
+        time.sleep(0.3)
         print(f"Post Turn Position: {self.get_robot_pose()}\n")
                 
         # 2. Robot drives straight towards waypt
@@ -586,12 +602,6 @@ class Operate:
         turning_angle_deg = np.rad2deg(turning_angle)
 
         abs_turning_angle_deg = abs(turning_angle_deg)
-        if abs_turning_angle_deg > 45:
-            tick_offset = 8
-        elif abs_turning_angle_deg > 30:
-            tick_offset = 5
-        else: 
-            tick_offset = 0
 
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
@@ -599,15 +609,14 @@ class Operate:
         pivot_circum = np.pi * self.baseline 
         distance_per_wheel = abs(turning_angle / (2*np.pi)) * pivot_circum
 
-        # distance each wheel must travel
         # distance_per_wheel = (baseline/2) * turning_angle
         turning_revolutions = distance_per_wheel / wheel_circum
 
-        # if turn_ticks has been given be default, none of the previous calculations matter anymore
+        # if turn_ticks has been given by default, none of the previous calculations matter anymore
         if turn_ticks != 0:
             num_ticks = turn_ticks
         else:
-            num_ticks = np.round(abs((turning_revolutions * self.ticks_per_revolution) + tick_offset))
+            num_ticks = np.round(abs(turning_revolutions * self.ticks_per_revolution))
         
         print(f' /// Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
 
@@ -626,15 +635,10 @@ class Operate:
         this function makes the robot drive straight a certain time automatically 
         '''
 
-        if dist_to_waypt > 0:
-            self.tick_offset = 0
-        else: 
-            self.tick_offset = 0
-
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
         drive_revolutions = dist_to_waypt / wheel_circum
-        num_ticks = np.round(drive_revolutions * self.ticks_per_revolution + self.tick_offset)
+        num_ticks = np.round(drive_revolutions * self.ticks_per_revolution)
 
         # time to drive straight for 
         drive_time = dist_to_waypt / (self.scale * wheel_lin_speed)
@@ -646,7 +650,6 @@ class Operate:
         # Drive to point, updating slam throughout
         if num_ticks != 0:
             self.control_tick(drive_speeds[0], drive_speeds[1], num_ticks)
-        
 
         return None
     
@@ -654,10 +657,54 @@ class Operate:
     Getter method to call to get robot state from ekf
     """
     def get_robot_pose(self):
-        '''
-        Returns the current robot pose from ekf
-        '''    
         return self.ekf.robot.state.squeeze().tolist()
+    
+
+    ''' NEWNEWNEW NIGHTMARE NIGHTMARE 
+    Estimate robot pose using SLAM and ArUco markers, trying to rewrite localise robot here
+    '''
+    def est_robot_pose(self):
+
+        print("Robot panning and estimating own location....")
+
+        robot_pose = self.get_robot_pose()
+        turning_angle = np.pi/24            # 1 tick increments   
+        total_rotations = 0   
+        num_turns = int(2*np.pi / turning_angle)
+        markers_found = []
+        
+        for i in range(num_turns):
+        
+        # while True:
+            # turn for one tick
+            self.rotate_step()
+
+            # take pic and return measurements on the spot
+            measurements = self.control_zero_ticks()
+
+            # print pose for funsies
+            print(f"Turn Pose: {self.get_robot_pose()}")
+
+            # if there are any aruco's read 
+            if measurements:
+                for m in measurements:
+                    if m.tag not in [marker.tag for marker in markers_found]:
+                        markers_found.append(m)
+                    
+                if len(measurements) >= 2:
+                    # use this to approximate location
+                    print(f"{len(measurements)} markers found. Reorienting for 2 seconds")
+                    time.sleep(1.5)
+
+                    # call to confirm robot's own pose after reorientation
+                    self.confirm_pose()
+                    print(f"Determined pose: {self.get_robot_pose()}")
+
+                    # pose is now determined, exit loop and continue on with next waypoint
+                    break
+            
+        return None
+    
 
 
     
@@ -672,16 +719,20 @@ class Operate:
         robot_pose = self.get_robot_pose()
 
         # keep updating slam but with zero movement
+        pose_confirmation_count = 0
+        target_confirmation_count = 5
         while True:
             self.control_zero_ticks()
-            curr_best_pose = self.get_robot_pose()
+            # curr_best_pose = self.get_robot_pose()
 
             # this waits until the pose is stabilised within 0.005
             # ---- scuffed ass np call
-            if np.all(np.abs(np.array(curr_best_pose) - np.array(robot_pose)) < 0.005):
-                print("::::: Pose Confirmed! :::::")
-                break
-            robot_pose = curr_best_pose
+            if np.all(np.abs(np.array(self.get_robot_pose()) - np.array(robot_pose)) < 0.005):
+                pose_confirmation_count += 1
+                if pose_confirmation_count >= target_confirmation_count:
+                    print("::::: Pose Confirmed! :::::")
+                    break
+            robot_pose = self.get_robot_pose()
             time.sleep(0.05)
             # the pose held by self.ekf.robot.state is now the confirmed pose 
         return robot_pose
@@ -742,7 +793,7 @@ class Operate:
     def is_close_to_waypoint(self, waypoint, current_pose):
         x, y, _ = current_pose
         x_goal, y_goal = waypoint
-        threshold = 0.05
+        threshold = 0.1
 
         return abs(x - x_goal) <= threshold and abs(y - y_goal) <= threshold
     
@@ -1033,4 +1084,4 @@ if __name__ == "__main__":
         operate.detect_object()
         operate.slam_gui_update(drive_meas,canvas)
         # upon pressing 'w', this function completely takes over
-        operate.auto_fruit_search(canvas)
+        operate.auto_fruit_search()
