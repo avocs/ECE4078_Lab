@@ -156,7 +156,7 @@ class Operate:
         return drive_meas
     
 
-    # rotate by 1 tick -- does not call to update slam # To-do (Should update slam)
+    # rotate by 1 tick -- does not call to update slam 
     def rotate_step(self):
 
         initial_ticks = self.pibot_control.get_counter_values()
@@ -519,7 +519,7 @@ class Operate:
                         self.localising_flag = True
                         self.localise_rotate_robot()
                         self.localising_flag = False
-                        self.drive_to_point(waypoint_to_go)
+                        # self.drive_to_point(waypoint_to_go)
 
                     # remove that waypoint off the waypoint list
                     self.waypoints_list[0].pop(0)
@@ -713,7 +713,7 @@ class Operate:
         target_confirmation_count = 5
         counter = 0
         while True:
-            if counter >= 20:
+            if counter >= 20:                   # this is taking too long
                 break
             self.control_zero_ticks()
             # curr_best_pose = self.get_robot_pose()
@@ -746,13 +746,10 @@ class Operate:
         for i in range(num_turns):
             print(f'Rotation: {i+1}, Total turned: {turning_angle*i}')
             
-            # fixed to turn 1 tick at a time, this is done without updating slam
-            self.rotate_step() # From Eugene: Should update slam here too
-            # this one now updates slam with it 
-            # self.control_tick(-wheel_rot_speed, wheel_rot_speed, 1)
-            
+            # fixed to turn 1 tick at a time, updating slam along the way
+            self.rotate_step()            
             # confirm its position for a while
-            self.confirm_pose() # From Eugene: I think can just introduce delay or set count smaller (current implementation introduce a lot of delay)
+            self.confirm_pose() 
                             
             # printing pose 
             print(f"Position after rotating: {self.get_robot_pose()}")

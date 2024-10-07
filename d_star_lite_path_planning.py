@@ -38,11 +38,6 @@ def compare_coordinates(node1: Node, node2: Node):
 
 class DStarLite:
 
-    # Please adjust the heuristic function (h) if you change the list of
-    # possible motions
-
-    # the possible motion of the robot
-
     d = 2
     motions = [
         Node(d, 0, d),   # going right by 2 
@@ -255,6 +250,7 @@ def generate_points_L2(fruit_goals, aruco_true_pos):
     
     return sx, sy, gx, gy, fx, fy, face_angle
     
+ # scuffed generate pts function for L3    
 def generate_points_L3(curr_pos, fruit_goals_remain, aruco_true_pos, spoofed_obs):
     sx = np.array([curr_pos[0]])
     sy = np.array([curr_pos[1]])
@@ -359,6 +355,8 @@ def generate_points_L3(curr_pos, fruit_goals_remain, aruco_true_pos, spoofed_obs
     
     return sx, sy, gx, gy, fx, fy, face_angle
 
+
+# duplicate 
 def read_true_map(fname):
     """Read the ground truth map and output the pose of the ArUco markers and 3 types of target fruit to search
 
@@ -400,6 +398,8 @@ def read_true_map(fname):
 
         return fruit_list, fruit_true_pos, aruco_true_pos
 
+
+# duplicate
 def read_search_list():
     """Read the search order of the target fruits
 
@@ -414,6 +414,8 @@ def read_search_list():
 
     return search_list
 
+
+# duplicate
 def print_target_fruits_pos(search_list, fruit_list, fruit_true_pos):
     """Print out the target fruits' pos in the search order
 
@@ -463,6 +465,7 @@ def generate_spoofed_obs(spoofed_obs):
 
     return spoofed_ox, spoofed_oy
 
+# uh
 class GenerateCoord:
     def __init__(self, fname):
         self.fname = fname
@@ -635,8 +638,10 @@ class GenerateCoord:
 
         return spoofed_ox, spoofed_oy
         
+
+# generate a plot 
 def animation():
-    gen_cor = GenerateCoord('M4_true_map.txt')
+    gen_cor = GenerateCoord('fuck6.txt')
     fruit_list, _, _ = gen_cor.read_true_map()
     obs_fruit_list = []
     spoofed_obs = []
@@ -697,7 +702,7 @@ def ori():
     gx = 50  # [m]
     gy = 50  # [m]
 
-    # set obstacle positions
+    # set obstacle positions 
     ox, oy = [], []
     for i in range(-10, 60):
         ox.append(i)
@@ -738,18 +743,6 @@ def ori():
                    fontsize="xx-small")
         plt.plot()
         plt.pause(pause_time)
-
-    # Obstacles discovered at time = row
-    # time = 1, obstacles discovered at (0, 2), (9, 2), (4, 0)
-    # time = 2, obstacles discovered at (0, 1), (7, 7)
-    # ...
-    # when the spoofed obstacles are:
-    # spoofed_ox = [[0, 9, 4], [0, 7], [], [], [], [], [], [5]]
-    # spoofed_oy = [[2, 2, 0], [1, 7], [], [], [], [], [], [4]]
-
-    # Reroute
-    # spoofed_ox = [[], [], [], [], [], [], [], [40 for _ in range(10, 21)]]
-    # spoofed_oy = [[], [], [], [], [], [], [], [i for i in range(10, 21)]]
 
     # Obstacles that demostrate large rerouting
     spoofed_ox = [[], [], [],
@@ -814,6 +807,7 @@ def new_main():
         
     plt.show()
 
+# argh 
 def detect_fruit_path():
     fruit_list, fruit_true_pos, aruco_true_pos = read_true_map('M4_true_map.txt')
     search_list = read_search_list()
@@ -916,8 +910,7 @@ def detect_fruit_path():
         temp = [[x/10.0,y/10.0] for x, y in zip(pathx, pathy)]
         waypoints_list_new.append(temp)
         
-    # self.waypoints_list = waypoints_list_new
-    # waypoints_list_new[0].insert(0, )
+
     print(waypoints_list_new)
     # print(waypoints_list_new[0].pop(0))
     # # Feedback
