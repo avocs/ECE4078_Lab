@@ -304,7 +304,7 @@ class Operate:
             self.obj_detector_pred, self.prediction_img = self.obj_detector.detect_single_image(self.img)
             str_preds = [str(pred) for pred in self.obj_detector_pred]
             self.fin_prediction_img = cv2.cvtColor(self.prediction_img, cv2.COLOR_RGB2BGR)
-            self.command['run_obj_detector'] = False
+            self.command['run_obj_detector'] = True
             self.obj_detector_output = (self.obj_detector_pred, self.ekf.robot.state.tolist())
             self.notification = f'{len(np.unique(str_preds))} object type(s) detected'
 
@@ -519,7 +519,7 @@ class Operate:
                         self.localising_flag = True
                         self.localise_rotate_robot()
                         self.localising_flag = False
-                        self.drive_to_point(waypoint_to_go)
+                        # self.drive_to_point(waypoint_to_go)
 
                     # remove that waypoint off the waypoint list
                     self.waypoints_list[0].pop(0)
@@ -713,7 +713,7 @@ class Operate:
         target_confirmation_count = 5
         counter = 0
         while True:
-            if counter >= 20:
+            if counter >= 20: 
                 break
             self.control_zero_ticks()
             # curr_best_pose = self.get_robot_pose()
@@ -776,11 +776,22 @@ class Operate:
             
             # confirm its position for a while
             self.confirm_pose() # From Eugene: I think can just introduce delay or set count smaller (current implementation introduce a lot of delay)
-                            
+
             # printing pose 
             print(f"Position after rotating: {self.get_robot_pose()}")
             time.sleep(0.25)
         return None
+    
+
+        # for i in range(num_turns):
+        #     print(f'Rotation: {i+1}, Total turned: {turning_angle*i}')
+        #     self.control_tick(-wheel_rot_speed, wheel_rot_speed,1)
+
+        #     self.confirm_pose()
+        #     print(f"Position after rotating: {self.get_robot_pose()}")
+        #     time.sleep(0.25)
+        # return None
+
     
 
     # NOTE: This checks if the robot is sort of at the waypoint. otherwise the robot will keep trying to drive
@@ -913,7 +924,7 @@ class Operate:
                 for i,lm in enumerate(aruco_true_pos):
                     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
                     lms.append(measure_lm)
-                self.ekf.add_landmarks_true(lms)   
+                self.ekf.add_landmarks(lms)   
             
             # TODO Load true map into ekf by pressing t
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:

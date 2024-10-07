@@ -78,7 +78,9 @@ spacing = 10
 divisor = 0.01
 thresholdDistance = 0
 # map_file = 'testingmap1.txt'
-map_file = 'fuck6.txt'
+# map_file = 'fuck6.txt'
+map_file = 'truemap2.txt'
+
 segementedFile = True
 numberOfFruits = 13
 
@@ -142,7 +144,7 @@ def main():
                           [ 1.6, -0.4]]
     
     # Wanted Search List
-    search_list =   ['orange', 'redapple']
+    search_list =   [ 'redapple','greenapple','orange']
     # search_list =   ['redapple', 'capsicum', 'orange']
     # search_list =   ['mango']
     search_index = []

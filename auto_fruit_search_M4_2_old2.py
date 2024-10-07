@@ -238,7 +238,7 @@ class Operate:
 
                 # TODO change to 2
                 # if there are more than 3 aruco markers, 
-                if (len(measurements) >= 2):        # if there are more than 3 aruco markers in sight
+                if (len(measurements) >= 1):        # if there are more than 3 aruco markers in sight
                     self.pos_read_flag = True       # the position to be read is the ekf corrected pose
                     print("Reading SLAM position)")
 
