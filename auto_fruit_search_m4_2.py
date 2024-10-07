@@ -304,7 +304,7 @@ class Operate:
             self.obj_detector_pred, self.prediction_img = self.obj_detector.detect_single_image(self.img)
             str_preds = [str(pred) for pred in self.obj_detector_pred]
             self.fin_prediction_img = cv2.cvtColor(self.prediction_img, cv2.COLOR_RGB2BGR)
-            self.command['run_obj_detector'] = False
+            # self.command['run_obj_detector'] = False
             self.obj_detector_output = (self.obj_detector_pred, self.ekf.robot.state.tolist())
             self.notification = f'{len(np.unique(str_preds))} object type(s) detected'
 
@@ -515,7 +515,7 @@ class Operate:
                     
                     # localise self at every sub-waypoint except for first and last at that point
                     #while (not self.is_close_to_waypoint(waypoint_to_go, self.get_robot_pose())):
-                    if self.curr_waypoint_count > 1:
+                    if self.curr_waypoint_count > 1 and len(self.waypoints_list[0]) > 1:
                         self.localising_flag = True
                         self.localise_rotate_robot()
                         self.localising_flag = False
@@ -742,37 +742,14 @@ class Operate:
         num_rotations = 0
         turning_angle = np.pi/24            # 1 tick increments      
         num_turns = int(2*np.pi / turning_angle)
-        
-    # Method 1: some scuffed marker finding bullshit that is not implemented yet
-##############################################################
-
-        # while True:
-        #     flag = False
-        #     target_marker_count = 3
-
-        #     while (self.control_static() < target_marker_count):
-        #         self.rotate_step()
-        #         num_rotations += 1 
-                
-        #         if (num_rotations >= 40):
-        #             num_rotations = 0
-        #             target_marker_count -= 1 
-        #             flag = True
-        #             print(f"3 Markers not found. Finding 2 Markers")
-                
-        #     if flag == True:
-        #         self.confirm_pose()
-        #         break
-            
-    # Method 2: forced rotation for 2pi 
-#################################################################
 
         for i in range(num_turns):
             print(f'Rotation: {i+1}, Total turned: {turning_angle*i}')
             
             # fixed to turn 1 tick at a time, this is done without updating slam
             self.rotate_step() # From Eugene: Should update slam here too
-            # self.rotate_drive(turn_ticks=1, turning_angle=turning_angle, wheel_rot_speed=wheel_rot_speed)
+            # this one now updates slam with it 
+            # self.control_tick(-wheel_rot_speed, wheel_rot_speed, 1)
             
             # confirm its position for a while
             self.confirm_pose() # From Eugene: I think can just introduce delay or set count smaller (current implementation introduce a lot of delay)

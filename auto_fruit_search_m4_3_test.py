@@ -8,6 +8,7 @@ import cv2
 import time
 import os, sys
 import numpy as np
+import shutil
 import pygame # python package for GUI
 from pibot import Drive
 from pibot import PibotControl # access the robot
@@ -53,6 +54,26 @@ class Operate:
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
         self.pibot_control.set_pid(use_pid=0, kp=0.0001, ki=0, kd=0.001)  
 
+        self.lab_output_dir = 'lab_output/'
+        if not os.path.exists(self.lab_output_dir):
+            os.makedirs(self.lab_output_dir)
+
+        self.pred_output_dir = 'pred_output/'
+        if not os.path.exists(self.pred_output_dir):
+            os.makedirs(self.pred_output_dir)
+        else:
+            # Delete the folder and create an empty one, i.e. every operate.py is run, this folder will be empty.
+            shutil.rmtree(self.pred_output_dir)
+            os.makedirs(self.pred_output_dir)
+        
+        self.save_output_dir = 'save_output/'
+        if not os.path.exists(self.save_output_dir):
+            os.makedirs(self.save_output_dir)
+        else:
+            # Delete the folder and create an empty one, i.e. every operate.py is run, this folder will be empty.
+            shutil.rmtree(self.save_output_dir)
+            os.makedirs(self.save_output_dir)      
+
         # Initialise SLAM parameters (M2)
         self.ekf = self.init_ekf(args.calib_dir, args.ip)
         self.aruco_sensor = ArucoSensor(self.ekf.robot, marker_length=0.06) # size of the ARUCO markers (6cm)
@@ -90,7 +111,7 @@ class Operate:
         self.prev_pose = np.zeros((3,1))
         self.guessed_pose = np.zeros((3,1))
         self.pos_read_flag = False
-        self.camera_offset = 0.00   # NOTE: measured from front of car to front of ECE4078 label on car
+        self.camera_offset = 0.17   # NOTE: measured from front of car to front of ECE4078 label on car
         self.wheel_diameter = 68e-3 # yoinked from cytron 
         self.ticks_per_revolution = 20
 
@@ -257,32 +278,32 @@ class Operate:
             #     else:
             #         self.notification = 'Insufficient markers for updating SLAM'
 
-            else: 
-                # corrects the robot location if it sees any arucos
+            # Recovered original update_slam
+            else:
                 self.ekf.add_landmarks(measurements)
                 self.ekf.update(measurements)
 
+                # TODO change to 2
                 # if there are more than 3 aruco markers, 
-                if (len(measurements) >= 3):        # if there are more than 3 aruco markers in sight
+                if (len(measurements) >= 2):        # if there are more than 3 aruco markers in sight
                     self.pos_read_flag = True       # the position to be read is the ekf corrected pose
                     print("Reading SLAM position)")
 
-                else: 
-                    self.pos_read_flag = False      # otherwise, position takes the motion model blind pose
-                    # if the robot is currently rotating on the spot
-                    if self.localising_flag:
-                        print("---- Localising")
-                        xp,yp,thetap = self.prev_pose   # the previous x and y is accessed and forced into state
-                        self.ekf.robot.state[0,0], self.ekf.robot.state[1,0] = xp, yp 
-                    else:
-                        print("-- Motion model Estimation")
-                        xg,yg,thetag = self.guessed_pose
-                        print(f"new x, y {xg} {yg}")
+            # else: 
+            #     # corrects the robot location if it sees any arucos
+            #     if (len(measurements) >= 2):
+            #         self.ekf.add_landmarks(measurements)
+            #         self.ekf.update(measurements)
+            #         print("Reading SLAM position)")
 
-                        # force the state to be the driving one 
-                        self.ekf.robot.state[0,0], self.ekf.robot.state[1,0], self.ekf.robot.state[2,0] = xg,yg,thetag 
+                # # if there are more than 3 aruco markers, 
+                # if (len(measurements) >= 2):        # if there are more than 3 aruco markers in sight
+                #     self.pos_read_flag = True       # the position to be read is the ekf corrected pose
+                #     print("Reading SLAM position)")
 
         print(f"Final pred pose {self.get_robot_pose()}")
+        angle = self.ekf.robot.state[2,0] * 180/np.pi
+        print(f"Angle: {angle}" )
         return len(measurements)
 
         
@@ -558,7 +579,7 @@ class Operate:
                 fruit_x= pose['x']
                 fruit_y= pose['y']
 
-                #not sure hoe to change this
+                # what is going on here 
                 # snap to grid
                 fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
                 fruit_y = dstar.round_nearest(fruit_y, 0.4)
@@ -582,7 +603,6 @@ class Operate:
                     self.ox.extend(obs_x)
                     self.oy.extend(obs_y)
                     self.path_algo= DStarLite(self.ox,self.oy)
-
 
                     # not sure how the rounding works
                     current_pose= self.get_robot_pose
@@ -609,23 +629,6 @@ class Operate:
                     print(f"New path with obstacles generated: {self.waypoints_list}")
 
                 return update_flag
-
-
-### see if wanna include command
-        # upon pressing 'p', this calls run inference on the current image, obtains bounding boxes and 
-        # an output image with the bbox drawn, saved into self.obj_detector_pred and self.fin_prediction_img respectively
-        if self.command['run_obj_detector'] and self.obj_detector is not None:
-            # obj_detector_pred = bounding_boxes, prediction_img = output_img
-            self.obj_detector_pred, self.prediction_img = self.obj_detector.detect_single_image(self.img)
-
-            str_preds = [str(pred) for pred in self.obj_detector_pred]
-            self.fin_prediction_img = cv2.cvtColor(self.prediction_img, cv2.COLOR_RGB2BGR)
-            self.command['run_obj_detector'] = False
-            self.obj_detector_output = (self.obj_detector_pred, self.ekf.robot.state.tolist())
-            self.notification = f'{len(np.unique(str_preds))} object type(s) detected'
-
-
-        # whatever the pressing N does 
 
 
 
