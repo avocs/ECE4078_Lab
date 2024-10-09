@@ -255,6 +255,113 @@ def live_fruit_pose_update(self):
     return object_est
 
 
+def main(): 
+
+    fileK = "{}intrinsic.txt".format('./calibration/param/')
+    camera_matrix = np.loadtxt(fileK, delimiter=',')    
+    
+    # a dictionary of all the saved detector outputs
+    # image_poses should contain all the robot poses recorded and its corresponding image file taken
+    image_poses = {}
+    with open('lab_output/pred.txt', 'r') as fp:
+        for line in fp.readlines():
+            pose_dict = ast.literal_eval(line) # pose_dict = {pose, predfname}
+            image_poses[pose_dict['predfname']] = pose_dict['pose'] # image_poses = {pred_n.png: robotpose}
+    print(f'Reading data from {len(image_poses.keys())} images..')
+
+    image_boundingboxes = {}
+    with open('lab_output/bbox.txt', 'r') as fb:
+        for line in fb.readlines():
+            bbox_dict = ast.literal_eval(line)
+            predfname =  bbox_dict['predfname']
+            if predfname not in image_boundingboxes:
+                image_boundingboxes[predfname] = []
+            image_boundingboxes[predfname].append([bbox_dict['label'], bbox_dict['bbox']])
+
+
+    # estimate pose of objects in each image
+
+    # TODO variables labelled 'full' means all fruit bboxes are being used to estimate pose without filtering out too near/too far boxes
+    model_path = os.path.join('YOLOv8', 'best_10k.pt')
+    yolo = ObjectDetector(model_path)
+    object_pose_dict = {}
+    object_pose_full_dict = {}
+    detected_type_list = []
+    detected_type_full_list = []
+
+    # for each image file, get the raw image's bounding boxes and robot pose info, estimate where the fruit is in the world frame, 
+    # then add these estimations into an object_pose_dict.
+    # object_pose_dict should collect the estimated poses of all objects across all pictures taken
+    for image_path in image_poses.keys():
+        input_image = cv2.imread(image_path)
+
+        img = cv2.cvtColor(input_image,cv2.COLOR_RGB2BGR)
+
+        # calls inference on the image and gets the bounding boxes coordinate results
+        # bounding_boxes, bbox_img = yolo.detect_single_image(img)
+        
+        # TODO show bounding boxes and convert back to rgb for inferencing 
+        # bbox_img = cv2.cvtColor(bbox_img, cv2.COLOR_BGR2RGB)
+        cv2.imshow('bbox', input_image)
+        cv2.waitKey(0)
+
+        # obtain robot pose and bounding boxes for the corresponding image
+        robot_pose = image_poses[image_path]
+        bounding_boxes = image_boundingboxes[image_path]
+
+        # for each bounding box in the list of boxes obtainable from the image,
+        for detection in bounding_boxes:
+            # detection[0] is the class label
+            label = detection[0]
+            # occurence is a tally of how many times a label's bounding box has appeared across all images
+            occurrence = detected_type_list.count(label)
+            occurrence_full = detected_type_full_list.count(label)
+            # for each bounding box that appears, estimate where it is on the map, then add the results as an entry to object_pose_dict
+            object_pose_entry, object_pose_rejected = estimate_pose(camera_matrix, detection, robot_pose)
+           
+            # if the bounding box is not invalid, add this entry to the a filtered list to pass into merge
+            # but this pose will be added to a general dictionary anyway
+            if not object_pose_rejected:
+                object_pose_dict[f'{label}_{occurrence}'] = object_pose_entry
+                # adds the occurenece to the list, for tallying
+                detected_type_list.append(label)
+            
+            object_pose_full_dict[f'{label}_{occurrence_full}'] = object_pose_entry
+            detected_type_full_list.append(label)
+            # print(f'detection0 {detection[0]}, occurence {occurrence}')
+
+    # merge the estimations of the objects so that there are at most 1 estimations of each object type
+    object_est = {}
+    object_est, fruit_ests = merge_estimations(object_pose_dict)
+    object_est_full, fruit_ests_full = merge_estimations(object_pose_full_dict)
+
+    return object_est
+########################################################################################################
+    # GENERATING OUTPUTS # 
+
+    # print(fruit_ests)
+    print("\nFruit Estimations:")
+    print("----------------------------")
+    for label, estimations in fruit_ests.items():
+        print(f"{label:11} | Total: {len(estimations['x'])}", end="\n")
+        print("========================")
+        for x,y in zip(estimations['x'], estimations['y']):
+            print(f"{x:7.4f}, {y:7.4f}\n", end="")
+        print()
+    
+    print("\nObject Final Estimations:")
+    print("----------------------------")
+    for label, estimation in object_est.items():
+        print(f"{label:20} | {estimation['x']:6.3f} {estimation['y']:6.3f}")
+
+    # save object pose estimations into objects.txt
+    objects_path = os.path.join('lab_output', 'objects.txt')
+    with open(objects_path, 'w') as fo:
+        json.dump(object_est, fo, indent=4)
+
+    print('Estimations saved!')
+
+
 
 # main loop
 if __name__ == "__main__":

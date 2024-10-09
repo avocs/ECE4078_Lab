@@ -84,12 +84,12 @@ class ObjectDetector:
         pred_fname = os.path.join(pred_output_dir, 'pred_' + str(self.pred_count) + '.png')
         self.pred_count += 1
 
-        if bbox_fname is not None:
+        if bbox_fname is None:
             bbox_fname = self.bbox_fname
         else: 
             bbox_fname = bbox_fname
 
-        if pred_pose_fname is not None:
+        if pred_pose_fname is None:
             pred_pose_fname = self.pred_pose_fname
         else:
             pred_pose_fname = pred_fname

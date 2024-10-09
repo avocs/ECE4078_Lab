@@ -16,6 +16,9 @@ class EKF:
         self.robot = robot
         self.markers = np.zeros((2,0))
         self.taglist = []
+        
+        # NOTE sandra added
+        self.update_landmarks_flag = True
 
         # Covariance matrix
         self.P = np.zeros((3,3))
@@ -85,7 +88,7 @@ class EKF:
             self.P[3 + 2*j + 1, 3 + 2*j + 1] = 0
 
         # Landmarks are now fixed, so we can disable updates
-        self.update_landmarks = False
+        self.update_landmarks_flag = False
 
     def number_landmarks(self):
         return int(self.markers.shape[1])
@@ -182,6 +185,8 @@ class EKF:
         if not measurements:
             return
 
+
+        # NOTE sandra is trying to see if update landmarks can be disabled here
         # Construct measurement index list
         tags = [lm.tag for lm in measurements]
         idx_list = [self.taglist.index(tag) for tag in tags]
@@ -235,7 +240,8 @@ class EKF:
         return Q
 
     def add_landmarks(self, measurements):
-        if not measurements:
+        # NOTE if there aren't any measurements or if the true map is already provided, return 
+        if not measurements or not self.update_landmarks_flag:
             return
 
         th = self.robot.state[2]
