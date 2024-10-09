@@ -32,7 +32,6 @@ import a_star_path_planning as astar
 import d_star_lite_path_planning as dstar
 from d_star_lite_path_planning import Node, DStarLite
 import object_pose_estyolo_M4 as obj_est
-import object_pose_estyolo_M4 as live_fruit_pose_update
 
 
 class Operate:
@@ -52,7 +51,7 @@ class Operate:
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=1, kp=0.0001, ki=0, kd=0.001)  
+        self.pibot_control.set_pid(use_pid=1, kp=5, ki=0, kd=0.001)  
 
         self.lab_output_dir = 'lab_output/'
         if not os.path.exists(self.lab_output_dir):
@@ -106,6 +105,7 @@ class Operate:
 
         # Aux objects/vars added for m4
         self.waypoints_list = []
+        self.obj_est = {}
         self.curr_waypoint_count = 0
         self.localising_flag = False
         self.prev_pose = np.zeros((3,1))
@@ -266,8 +266,8 @@ class Operate:
             self.prev_pose = self.get_robot_pose()
             self.ekf.predict(drive_meas)                # perform prediction based on motion model
             self.guessed_pose = self.get_robot_pose()   # the guessed pose is blindly fixed on the motion model calculated pose
-            print(f"self.guessed_pose {self.guessed_pose}")
-            print(f"self.prev_pose {self.prev_pose}")
+            # print(f"self.guessed_pose {self.guessed_pose}")
+            # print(f"self.prev_pose {self.prev_pose}")
             # M3, disable updates to aruco markers if true map is loaded
             if self.command['load_true_map']:
                 self.notification = 'SLAM locates robot pose'
@@ -554,7 +554,7 @@ class Operate:
 
 ################################ MAIN ALGORITHMS ########################################
 
-    def auto_fruit_search_AStar(self, canvas):
+    def auto_fruit_search_AStar(self):
         '''
         Perform fruit search to all fruits in search list
         '''
@@ -572,7 +572,7 @@ class Operate:
                     print("\n----------------------------------------------------------")
                     waypoint_to_go = self.waypoints_list[0][0]
                     print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {waypoint_to_go}")
-                    self.drive_to_point(waypoint_to_go, canvas)
+                    self.drive_to_point(waypoint_to_go)
                     robot_pose = self.get_robot_pose()
 
                     print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
@@ -692,7 +692,7 @@ class Operate:
         turning_angle = angle_to_waypt - robot_pose[2]         
         self.rotate_drive(turning_angle)
 
-        time.sleep(0.5)
+        time.sleep(0.3)
         print(f"Post Turn Position: {self.get_robot_pose()}\n")
                 
         # 2. Robot drives straight towards waypt
@@ -780,10 +780,10 @@ class Operate:
         if num_ticks != 0:
 
             # NOTE detect if fruit in path before driving
-            update_flag = self.live_estimate_and_path_replanning()
-            # do not drive if fruit in the way
-            if update_flag:
-                return
+            # update_flag = self.live_estimate_and_path_replanning()
+            # # do not drive if fruit in the way
+            # if update_flag:
+            #     return
 
             self.control_tick(drive_speeds[0], drive_speeds[1], num_ticks)
         
@@ -875,22 +875,22 @@ class Operate:
             self.obj_est = {}
 
             # doing this twice..?
-            for _ in range(2): 
+            # for _ in range(2): 
                 # take a picture
-                self.take_pic()
+            self.take_pic()
 
-                # run one detection
-                self.command['run_obj_detector'] = True
-                self.detect_object()
-                self.command['run_obj_detector'] = False
+            # run one detection
+            self.command['run_obj_detector'] = True
+            self.detect_object()
+            self.command['run_obj_detector'] = False
 
-                self.draw(canvas)
-                pygame.display.update()
+            self.draw(canvas)
+            pygame.display.update()
 
-                # save that estimation
-                self.command['save_obj_detector'] = True
-                self.record_data()
-                self.command['save_obj_detector'] = False
+            # save that estimation
+            self.command['save_obj_detector'] = True
+            self.record_data()
+            self.command['save_obj_detector'] = False
 
             # run estimations on the image saved 
             self.obj_est = obj_est.main()
@@ -908,63 +908,66 @@ class Operate:
         update_flag= False
 
         # check if the fruit is in the list
-        for label, pose in self.obj_est.items():
-            if label not in fruit_list: 
-                fruit_x= pose['x']
-                fruit_y= pose['y']
+        if self.obj_est is not None:
+            for label, pose in self.obj_est.items():
+                if label not in fruit_list: 
+                    fruit_x= pose['x']
+                    fruit_y= pose['y']
 
-                # what is going on here 
-                # snap to grid
-                fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
-                fruit_y = dstar.round_nearest(fruit_y, 0.4)
+                    # what is going on here 
+                    # snap to grid
+                    fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
+                    fruit_y = dstar.round_nearest(fruit_y, 0.4)
+                    
+                    fruit_coord= np.array([fruit_x,fruit_y])
+                    print(f"Fruit detected: {fruit_coord}")
+
+                    if self.spoofed_obs:
+                        if not(fruit_coord==self.spoofed_obs).all(1).any():
+                            self.spoofed_obs.append(fruit_coord)
+                            print(f"New obstacle detected at position:{fruit_coord}")
+                            update_flag = True
+
+                        else: 
+                            self.spoofed_obs.append(fruit_coord)
+                            print(f"New obstacle detected at position:{fruit_coord}")
+                            update_flag = True
+
+                    # if the code calls to update
+                    if update_flag:
+                        obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
+                        self.ox.extend(obs_x)
+                        self.oy.extend(obs_y)
+                        self.path_algo= DStarLite(self.ox,self.oy)
+
+                        # im not even gonna mess with htis number anymore... 
+                        current_pose = self.get_robot_pose
+                        current_x = current_pose[0]
+                        current_y = current_pose[1]
+                        rounded_x = dstar.round_nearest(current_x,0.2)
+                        rounded_y = dstar.round_nearest(current_y,0.2)
+                        current_pose = [rounded_x,rounded_y]
+
+                        # what even 
+                        sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
+
+                        # generate new path
+                        new_waypoints_list= []
+                        for i in range (len(sx)):
+                            _, path_x, path_y = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
+                            path_x.pop(0)
+                            path_y.pop(0)
+                            temp = [[x/10.0,y/10.0] for x, y in zip(path_x, path_y)]
+                            self.new_waypoints_list.append(temp)
+
+                        self.waypoints_list = new_waypoints_list
+                        self.waypoints_list[0].insert(0,current_pose)
+
+                        print(f"\n\nNew path generated: {self.waypoints_list}")
+
+                    return update_flag
                 
-                fruit_coord= np.array([fruit_x,fruit_y])
-                print(f"Fruit detected: {fruit_coord}")
-
-                if self.spoofed_obs:
-                    if not(fruit_coord==self.spoofed_obs).all(1).any():
-                        self.spoofed_obs.append(fruit_coord)
-                        print(f"New obstacle detected at position:{fruit_coord}")
-                        update_flag = True
-
-                    else: 
-                        self.spoofed_obs.append(fruit_coord)
-                        print(f"New obstacle detected at position:{fruit_coord}")
-                        update_flag = True
-
-                # if the code calls to update
-                if update_flag:
-                    obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
-                    self.ox.extend(obs_x)
-                    self.oy.extend(obs_y)
-                    self.path_algo= DStarLite(self.ox,self.oy)
-
-                    # im not even gonna mess with htis number anymore... 
-                    current_pose = self.get_robot_pose
-                    current_x = current_pose[0]
-                    current_y = current_pose[1]
-                    rounded_x = dstar.round_nearest(current_x,0.2)
-                    rounded_y = dstar.round_nearest(current_y,0.2)
-                    current_pose = [rounded_x,rounded_y]
-
-                    # what even 
-                    sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
-
-                    # generate new path
-                    new_waypoints_list= []
-                    for i in range (len(sx)):
-                        _, path_x, path_y = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
-                        path_x.pop(0)
-                        path_y.pop(0)
-                        temp = [[x/10.0,y/10.0] for x, y in zip(path_x, path_y)]
-                        self.new_waypoints_list.append(temp)
-
-                    self.waypoints_list = new_waypoints_list
-                    self.waypoints_list[0].insert(0,current_pose)
-
-                    print(f"\n\nNew path generated: {self.waypoints_list}")
-
-                return update_flag
+        return None
         
 
 
@@ -1209,7 +1212,7 @@ if __name__ == "__main__":
         operate.take_pic()
         drive_meas = operate.control()
         operate.detect_object()
-        # QUESTION: should fruit est be done before or after update slam?
+        # NOTE QUESTION: should fruit est be done before or after update slam?
         # would it be the latter 
         operate.live_estimate_and_path_replanning()
         operate.slam_gui_update(drive_meas,canvas)

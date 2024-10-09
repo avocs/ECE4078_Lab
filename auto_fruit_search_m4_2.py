@@ -47,7 +47,8 @@ class Operate:
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=0, kp=0.0001, ki=0, kd=0.001)  
+        # NOTE: new PID values as of 09/10/2024
+        self.pibot_control.set_pid(use_pid=1, kp=0.15, ki=0, kd=0)  
 
         # Initialise SLAM parameters (M2)
         self.ekf = self.init_ekf(args.calib_dir, args.ip)
@@ -94,7 +95,7 @@ class Operate:
     def control(self):       
         left_speed, right_speed = self.pibot_control.set_velocity(self.command['wheel_speed'])
         dt = time.time() - self.control_clock
-        drive_meas = Drive(left_speed, right_speed, dt) # turning: 0.3~0.4
+        drive_meas = Drive(0.3*left_speed, 0.3*right_speed, dt) # turning: 0.3~0.4
         self.control_clock = time.time()
         return drive_meas
     
@@ -485,7 +486,7 @@ class Operate:
         plt.show() 
 
     def generate_path_astar(self, search_list, fruits_list, fruits_true_pos):
-        self.waypoints_list = astar.main()
+        self.waypoints_list = astar.main(args.map)
 
 ################################ MAIN ALGORITHM ########################################
 
@@ -848,23 +849,23 @@ class Operate:
                         self.ekf_on = True
                     else:
                         self.notification = '> 2 landmarks is required for pausing'
-                # elif n_observed_markers < 3:
-                #     self.notification = '> 2 landmarks is required for pausing'
-                # else:
-                #     if not self.ekf_on:
-                #         self.request_recover_robot = True
-                #     self.ekf_on = not self.ekf_on
-                #     if self.ekf_on:
-                #         self.notification = 'SLAM is running'
-                #     else:
-                #         self.notification = 'SLAM is paused'
+                elif n_observed_markers < 3:
+                    self.notification = '> 2 landmarks is required for pausing'
+                else:
+                    if not self.ekf_on:
+                        self.request_recover_robot = True
+                    self.ekf_on = not self.ekf_on
+                    if self.ekf_on:
+                        self.notification = 'SLAM is running'
+                    else:
+                        self.notification = 'SLAM is paused'
                 # read in the true map
-                lms = []
-                for i,lm in enumerate(aruco_true_pos):
-                    measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
-                    lms.append(measure_lm)
-                # TODO: check for add landmarks 
-                self.ekf.add_landmarks(lms)  
+                # lms = []
+                # for i,lm in enumerate(aruco_true_pos):
+                #     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
+                #     lms.append(measure_lm)
+                # # TODO: check for add landmarks 
+                # self.ekf.add_landmarks(lms)  
 
             # run path planning algorithm
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
@@ -883,11 +884,11 @@ class Operate:
                 
                 # read in the true map
                 # fruit_list, fruit_true_pos, aruco_true_pos = read_true_map('M4_true_map.txt')
-                lms = []
-                for i,lm in enumerate(aruco_true_pos):
-                    measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
-                    lms.append(measure_lm)
-                self.ekf.add_landmarks_true(lms)   
+                # lms = []
+                # for i,lm in enumerate(aruco_true_pos):
+                #     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
+                #     lms.append(measure_lm)
+                # self.ekf.add_landmarks_true(lms)   
             
             # TODO Load true map into ekf by pressing t
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
@@ -999,7 +1000,7 @@ if __name__ == "__main__":
     parser.add_argument("--port", metavar='', type=int, default=5000)
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--yoloV8", default='YOLOv8/best_10k.pt')
-    parser.add_argument("--map", type=str, default="m3set1.txt")
+    parser.add_argument("--map", type=str, default="")
     args, _ = parser.parse_known_args()
     
     pygame.font.init() 

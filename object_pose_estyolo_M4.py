@@ -47,26 +47,26 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     object_pose_rejected = False
     
     # camera parameters 
-    f_x = camera_matrix[0][0]  # focal length x
+    focal_length_x = camera_matrix[0][0]  # focal length x
     f_y = camera_matrix[1][1]  # focal length y 
-    c_x = camera_matrix[0][2]  # principal point x
+    principal_pt_x = camera_matrix[0][2]  # principal point x
     c_y = camera_matrix[1][2]  # principal point y
 
         
     ######### Replace with your codes #########
     # Compute pose of the object based on bounding box info and robot's pose
     # Use the height of the bounding box to estimate the distance Z_c
-    box_width = object_box[2]
-    box_height = object_box[3]
+    
+    box_width, box_height = object_box[2], object_box[3]
     
     # object depth as seen by camera, calculate wrt true height
-    object_measured_depth = (true_height * f_x) / box_height 
+    object_measured_depth = (true_height * focal_length_x) / box_height 
     
     # Compute the center of the bounding box 
     bbox_centre_x = object_box[0]
 
     # deviation of fruit in the x-axis with respect to the camera centreline
-    X_c = (bbox_centre_x*object_measured_depth - c_x*object_measured_depth)/f_x
+    X_c = (bbox_centre_x*object_measured_depth - principal_pt_x*object_measured_depth)/focal_length_x
 
     # Compute the angle of the fruit_object with respect to camera
     theta_cam = np.arctan(X_c/object_measured_depth)
@@ -79,12 +79,12 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # Compute the position of fruit in world frame
     theta_rc = theta_r - theta_cam
     diagonal = np.sqrt(object_measured_depth**2 + X_c**2)
-    X_wc = X_r + diagonal*np.cos(theta_rc)
-    Y_wc = Y_r + diagonal*np.sin(theta_rc)
+    fruit_pose_x = X_r + diagonal*np.cos(theta_rc)
+    fruit_pose_y = Y_r + diagonal*np.sin(theta_rc)
     
     # Save the estimated pose
-    object_pose = {'x': X_wc, 'y': Y_wc}
-    print(f'object_pose class {object_class}: {object_pose} || robot pose{X_r:.4f} {Y_r:.4f} {theta_r:.4f}')
+    object_pose = {'x': fruit_pose_x, 'y': fruit_pose_y}
+    print(f'Object_pose class {object_class}: {object_pose} || robot pose{X_r:.4f} {Y_r:.4f} {theta_r:.4f}')
     print(f"""
     Box Width: {box_width:.4f}  | Box Height: {box_height:.4f}  | objdepth_c: {object_measured_depth:.4f} | bboxx: {bbox_centre_x:.4f}
     X_fruitcam: {X_c:.4f}        | theta_fruitcam: {theta_cam:.4f}       | theta_fruitworld: {theta_rc:.4f}
@@ -335,7 +335,6 @@ def main():
     object_est, fruit_ests = merge_estimations(object_pose_dict)
     object_est_full, fruit_ests_full = merge_estimations(object_pose_full_dict)
 
-    return object_est
 ########################################################################################################
     # GENERATING OUTPUTS # 
 
@@ -361,6 +360,7 @@ def main():
 
     print('Estimations saved!')
 
+    return object_est
 
 
 # main loop

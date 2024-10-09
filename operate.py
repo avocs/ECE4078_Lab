@@ -301,11 +301,11 @@ class Operate:
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
                 # pass # TODO
-                self.command['wheel_speed'] = [-0.5, 0.6]
+                self.command['wheel_speed'] = [-0.6, 0.6]
             # drive right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
                 # pass # TODO
-                self.command['wheel_speed'] = [0.6, -0.5]
+                self.command['wheel_speed'] = [0.6, -0.6]
             # stop
             elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 self.command['wheel_speed'] = [0, 0]

@@ -78,7 +78,7 @@ class Robot:
             # lm_position[1,:] -= 0.2
 
             measurements_hat.append(lm_position)
-            # print("\tlmpos: ", " ".join(map(str, [item[0] for item in lm_position])))
+            print("\t\tlmpos: ", " ".join(map(str, [item[0] for item in lm_position])))
             # print("\tstate: ", " ".join(map(str, [item[0] for item in lm_state])))
             print("\trbtstate: ", " ".join(map(str, [item[0] for item in self.state])))
             # print(f'lmpos: {lm_position}, state: {lm_state}, rbtstate: {self.state}\n')

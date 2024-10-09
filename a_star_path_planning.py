@@ -90,7 +90,7 @@ numberOfFruits = 13
 ##################################################################################################
 ##################################################################################################
 '''
-def main():
+def main(map=""):
 
     #####################
     ## DEFINE VARIABLES
@@ -104,7 +104,7 @@ def main():
     # fruits_list=  ['redapple', 'greenapple', 'orange']
 
 
-    if segementedFile:
+    if map != "":
         positions = read_positions(map_file)
         aruco_true_pos = []
         fruits_true_pos = []
