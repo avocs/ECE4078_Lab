@@ -110,7 +110,7 @@ def compute_rmse(points1, points2):
 #         json.dump(d, map_f, indent=4)
 
 
-
+# TODO added by sandra
 def save_transformed_points(us_vec_aligned, fname='lab_output/slamcentered.txt'):
     d = {}
 

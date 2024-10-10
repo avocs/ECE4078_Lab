@@ -69,6 +69,10 @@ git add -A ':!<directory/file_to_exclude>'
 # hard reset current branch to fetch back origin
 https://stackoverflow.com/questions/1125968/how-do-i-force-git-pull-to-overwrite-local-files 
 
+git fetch --all 
+// backup if u want to
+git branch <backupbranchname>
+git reset --hard origin main
 
 # uploading changes to the remote repo
 1. after staging and committing, push to remote repo: git push origin <branch_name> 
