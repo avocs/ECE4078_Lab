@@ -36,7 +36,7 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     #                           '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.058], 
     #                           '5': [0.073, 0.073, 0.088]}
     object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.077, 0.077, 0.067], 
-                              '3': [0.075, 0.075, 0.072], '4': [0.113, 0.065, 0.054], 
+                              '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.058], 
                               '5': [0.073, 0.073, 0.088]}
 
     #####################################################################
@@ -56,7 +56,6 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     ######### Replace with your codes #########
     # Compute pose of the object based on bounding box info and robot's pose
     # Use the height of the bounding box to estimate the distance Z_c
-    
     box_width, box_height = object_box[2], object_box[3]
     
     # object depth as seen by camera, calculate wrt true height
@@ -79,11 +78,11 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # Compute the position of fruit in world frame
     theta_rc = theta_r - theta_cam
     diagonal = np.sqrt(object_measured_depth**2 + X_c**2)
-    fruit_pose_x = X_r + diagonal*np.cos(theta_rc)
-    fruit_pose_y = Y_r + diagonal*np.sin(theta_rc)
+    fruit_world_x = X_r + diagonal*np.cos(theta_rc)
+    fruit_world_y = Y_r + diagonal*np.sin(theta_rc)
     
-    # Save the estimated pose
-    object_pose = {'x': fruit_pose_x, 'y': fruit_pose_y}
+    # Save the estimated pose as a dictionary
+    object_pose = {'x': fruit_world_x, 'y': fruit_world_y}
     print(f'Object_pose class {object_class}: {object_pose} || robot pose{X_r:.4f} {Y_r:.4f} {theta_r:.4f}')
     print(f"""
     Box Width: {box_width:.4f}  | Box Height: {box_height:.4f}  | objdepth_c: {object_measured_depth:.4f} | bboxx: {bbox_centre_x:.4f}

@@ -206,11 +206,11 @@ class Operate:
         self.pibot_control.set_velocity([0,0])
         dt = time.time() - self.control_clock
         drive_meas = Drive(0.3*lv, 0.3*rv, dt)
-        self.slam_gui_update(drive_meas, canvas)
+        measurements = self.slam_gui_update(drive_meas, canvas)
         # sleep between steps for 0.25s 
         time.sleep(0.25)
     
-        return None
+        return measurements
         
         
     # NOTE one stop call to update slam and the pygame window
@@ -844,19 +844,38 @@ class Operate:
         num_rotations = 0
         turning_angle = np.pi/24            # 1 tick increments      
         num_turns = int(2*np.pi / turning_angle)
+        
+        # Method 1: keeling myself
+        # this should call for a rotate step and at the same time return its measurements 
+        while len(self.rotate_step()) <= 2:
+            num_rotations += 1
+            if num_rotations >= num_turns:
+                break 
 
-        for i in range(num_turns):
-            print(f'Rotation: {i+1}, Total turned: {turning_angle*i}')
+        # some fucking bullshit here to handle this thing if it never sees two markers
+        # currently fixed to just break out of the loop and drive as is
+        
+        self.confirm_pose()
+        print(f"Position after rotating: {self.get_robot_pose()}")
+        time.sleep(0.25)
+
+        return None 
+
+
+########################################################################
+        # Method 2: forced to turn a shit ton 
+        # for i in range(num_turns):
+        #     print(f'Rotation: {i+1}, Total turned: {turning_angle*i}')
             
-            # fixed to turn 1 tick at a time, updating slam along the way
-            self.rotate_step()            
-            # confirm its position for a while
-            self.confirm_pose() 
+        #     # fixed to turn 1 tick at a time, updating slam along the way
+        #     measurements = self.rotate_step()            
+        #     # confirm its position for a while
+        #     self.confirm_pose() 
                             
-            # printing pose 
-            print(f"Position after rotating: {self.get_robot_pose()}")
-            time.sleep(0.25)
-        return None
+        #     # printing pose 
+        #     print(f"Position after rotating: {self.get_robot_pose()}")
+        #     time.sleep(0.25)
+        # return None
 
     # NOTE: This checks if the robot is sort of at the waypoint. otherwise the robot will keep trying to drive
     def is_close_to_waypoint(self, waypoint, current_pose):
@@ -876,7 +895,7 @@ class Operate:
 
             # doing this twice..?
             # for _ in range(2): 
-                # take a picture
+            # take a picture
             self.take_pic()
 
             # run one detection
@@ -1011,12 +1030,12 @@ class Operate:
                 #     else:
                 #         self.notification = 'SLAM is paused'
                 # NOTE by default, read in the true map
-                lms = []
-                for i,lm in enumerate(aruco_true_pos):
-                    measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
-                    lms.append(measure_lm)
-                # TODO: check for add landmarks 
-                self.ekf.add_landmarks(lms)  
+                # lms = []
+                # for i,lm in enumerate(aruco_true_pos):
+                #     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
+                #     lms.append(measure_lm)
+                # # TODO: check for add landmarks 
+                # self.ekf.add_landmarks(lms)  
 
             # run path planning algorithm
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
@@ -1038,11 +1057,11 @@ class Operate:
                 
                 # read in the true map
                 # fruit_list, fruit_true_pos, aruco_true_pos = read_true_map('M4_true_map.txt')
-                lms = []
-                for i,lm in enumerate(aruco_true_pos):
-                    measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
-                    lms.append(measure_lm)
-                self.ekf.add_landmarks_true(lms)   
+                # lms = []
+                # for i,lm in enumerate(aruco_true_pos):
+                #     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
+                #     lms.append(measure_lm)
+                # self.ekf.add_landmarks_true(lms)   
             
             # TODO Load true map into ekf by pressing t
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
@@ -1061,7 +1080,6 @@ class Operate:
             # at this point i dont give a fuck what the keybindings are
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
                 self.command['detect_and_est_fruit'] = True
-
 
                 
             # quit

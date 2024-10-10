@@ -102,9 +102,9 @@ class EKF:
     def set_state_vector(self, state):
         self.robot.state = state[0:3,:]
         # print(self.robot.state)
-        self.markers = np.reshape(state[3:,:], (2,-1), order='F')
+        if self.update_landmarks_flag: # M3 calls to not update markers when using GT location
+            self.markers = np.reshape(state[3:,:], (2,-1), order='F')
         # TODO 
-        # print(f'markers:{self.markers}')
     
     def save_map(self, fname="slam.txt"):
         if self.number_landmarks() > 0:
@@ -240,8 +240,7 @@ class EKF:
         return Q
 
     def add_landmarks(self, measurements):
-        # NOTE if there aren't any measurements or if the true map is already provided, return 
-        if not measurements or not self.update_landmarks_flag:
+        if not measurements:
             return
 
         th = self.robot.state[2]
