@@ -66,7 +66,8 @@ nothing to commit, working tree clean
 --- if you want to add all but some directories:
 git add -A ':!<directory/file_to_exclude>'   
 
-
+# hard reset current branch to fetch back origin
+https://stackoverflow.com/questions/1125968/how-do-i-force-git-pull-to-overwrite-local-files 
 
 
 # uploading changes to the remote repo
