@@ -1225,10 +1225,12 @@ if __name__ == "__main__":
         # NOTE QUESTION: should fruit est be done before or after update slam?
         # would it be the latter 
         operate.live_estimate_and_path_replanning()
-        operate.detect_object()
-        operate.slam_gui_update(drive_meas,canvas)
+        operate.update_slam(drive_meas)
         operate.record_data()
         operate.save_image()
+        operate.detect_object()
+        operate.draw(canvas)
+        pygame.display.update()
         # upon pressing 'w', this function completely takes over
         operate.auto_fruit_search_AStar() 
         operate.auto_fruit_search_DStar(canvas)
