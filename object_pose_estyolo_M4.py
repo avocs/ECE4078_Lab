@@ -395,7 +395,7 @@ if __name__ == "__main__":
 
     # TODO variables labelled 'full' means all fruit bboxes are being used to estimate pose without filtering out too near/too far boxes
     model_path = os.path.join('YOLOv8', 'best_10k.pt')
-    yolo = ObjectDetector(model_path)
+    # yolo = ObjectDetector(model_path)
     object_pose_dict = {}
     object_pose_full_dict = {}
     detected_type_list = []

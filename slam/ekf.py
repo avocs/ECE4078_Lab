@@ -146,7 +146,7 @@ class EKF:
     # ########################################
 
     # the prediction step of EKF
-    def predict(self, drive_meas):
+    def predict(self, drive_meas):  
 
         F = self.state_transition(drive_meas)       # This is A in lecture notes which is derivative matrix
         x = self.get_state_vector()                 # Obtaining the current state vector

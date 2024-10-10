@@ -305,7 +305,9 @@ class Operate:
     def record_data(self):
         # this saves slam map to slam.txt upon pressing 's' 
         if self.command['save_slam']:
-            self.ekf.save_map(fname=os.path.join(self.lab_output_dir, 'slam.txt'))
+            # TODO add option to save to different file name
+            
+            self.ekf.save_map(fname=os.path.join(self.lab_output_dir, args.slamfile))
             self.notification = 'Map is saved'
             self.command['save_slam'] = False
         
@@ -416,7 +418,7 @@ class Operate:
                                           False, text_colour)
         canvas.blit(caption_surface, (position[0], position[1]-25))
 
-    # Keyboard teleoperation 
+    # Keyboard teleoperation, unused for M4 and M5  
     def update_keyboard(self):
         for event in pygame.event.get():
             # drive forward
@@ -1029,13 +1031,6 @@ class Operate:
                 #         self.notification = 'SLAM is running'
                 #     else:
                 #         self.notification = 'SLAM is paused'
-                # NOTE by default, read in the true map
-                # lms = []
-                # for i,lm in enumerate(aruco_true_pos):
-                #     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
-                #     lms.append(measure_lm)
-                # # TODO: check for add landmarks 
-                # self.ekf.add_landmarks(lms)  
 
             # run path planning algorithm
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_a:
@@ -1048,20 +1043,16 @@ class Operate:
             # run auto fruit searching dstar
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_d:
                 self.command['auto_fruit_search_dstar'] = True
+
+            # save SLAM map
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                self.command['save_slam'] = True
             
 
             # reset path planning algorithm
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_r:
                 self.waypoints_list = []
-                self.ekf.reset()
-                
-                # read in the true map
-                # fruit_list, fruit_true_pos, aruco_true_pos = read_true_map('M4_true_map.txt')
-                # lms = []
-                # for i,lm in enumerate(aruco_true_pos):
-                #     measure_lm = Marker(np.array([[lm[0]],[lm[1]]]),i+1)
-                #     lms.append(measure_lm)
-                # self.ekf.add_landmarks_true(lms)   
+                self.ekf.reset() 
             
             # TODO Load true map into ekf by pressing t
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_t:
@@ -1180,7 +1171,9 @@ if __name__ == "__main__":
     parser.add_argument("--calib_dir", type=str, default="calibration/param/")
     parser.add_argument("--yoloV8", default='YOLOv8/best_10k.pt')
     parser.add_argument("--map", type=str, default="m4demo.txt")
+    parser.add_argument("--slamfile", type=str, default="slam.txt")
     args, _ = parser.parse_known_args()
+
     
     pygame.font.init() 
     TITLE_FONT = pygame.font.Font('ui/8-BitMadness.ttf', 35)
@@ -1229,11 +1222,13 @@ if __name__ == "__main__":
         operate.update_keyboard_M4()
         operate.take_pic()
         drive_meas = operate.control()
-        operate.detect_object()
         # NOTE QUESTION: should fruit est be done before or after update slam?
         # would it be the latter 
         operate.live_estimate_and_path_replanning()
+        operate.detect_object()
         operate.slam_gui_update(drive_meas,canvas)
+        operate.record_data()
+        operate.save_image()
         # upon pressing 'w', this function completely takes over
-        operate.auto_fruit_search_AStar(canvas) 
+        operate.auto_fruit_search_AStar() 
         operate.auto_fruit_search_DStar(canvas)
