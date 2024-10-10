@@ -156,28 +156,13 @@ class EKF:
 
         # TODO: add your codes here to compute the predicted x
 
-        self.P = F @ self.P @ F.T + Q
+        self.P = F @ self.P @ F.T + Q   # (bar sigma k) = A * (sigma k-1) * (A transpose) + (sigma Q)
+                                        # Bar Sigma k in lecture notes is P
         # 1. Predict state by calling the drive function
-        # self.set_state_vector(F @ x)
+        # NOTE sandra is enabling this thing back again
+        self.set_state_vector(F @ x)
         self.robot.drive(drive_meas)
 
-
-        # Get the current state
-        # x_pred = self.get_state_vector()
-        # x_pred = F @ x
-
-
-        # # 2. Derivate Drive which is A
-        # # 3. Get covariance which is Q
-        # # 4. Update the covariance matrix
-        # P = self.P
-        # P_pred = F @ P @ F.T + Q                         # (bar sigma k) = A * (sigma k-1) * (A transpose) + (sigma Q)
-               
-        # # Update the P (Covariance Matrix)
-        # self.P = P_pred                                  # Bar Sigma k in lecture notes is P
-
-        # Update the predicted state
-        # self.set_state_vector(x_pred)    
 
 
     # the update/correct step of EKF
@@ -185,8 +170,6 @@ class EKF:
         if not measurements:
             return
 
-
-        # NOTE sandra is trying to see if update landmarks can be disabled here
         # Construct measurement index list
         tags = [lm.tag for lm in measurements]
         idx_list = [self.taglist.index(tag) for tag in tags]
