@@ -80,7 +80,7 @@ thresholdDistance = 0
 # map_file = 'testingmap1.txt'
 map_file = 'm4demo.txt'
 segementedFile = True
-numberOfFruits = 13
+numberOfFruits = 15
 
 
 '''
@@ -105,7 +105,7 @@ def main(map=""):
 
 
     if map != "":
-        positions = read_positions(map_file)
+        positions = read_positions(map)
         aruco_true_pos = []
         fruits_true_pos = []
         # aruco_true_pos = np.zeros([10,2])
@@ -497,7 +497,7 @@ def a_star_search(grid, src, dest):
 ##################### 
 # PATH SIMPLICATION
 # intention is to cut down on number of waypoints required to travel 
-def simplify_path(all_waypoints, threshold=0.4):
+def simplify_path(all_waypoints, threshold=0.6):
     new_path = []
 
     if printingTestFlag:
@@ -841,8 +841,8 @@ def plot_full_map(aruco_true_pos, fruits_copy):
         plt.annotate(f'aruco_{i}', (x, y), textcoords="offset points", xytext=(0,-10), ha='center')
 
     # fruit_color = [[128, 0, 0], [155, 255, 70], [255, 85, 0], [255, 180, 0], [0, 128, 0]]
-    # fruit_colour = ["red", "cyan", "orange", "yellow", "green"]
-    fruit_colour = ["red", "cyan", "orange"]
+    fruit_colour = ["red", "cyan", "orange", "yellow", "green"]
+    # fruit_colour = ["red", "cyan", "orange"]
 
     for i in range(len(fruits_copy)):
         x_fruits.append(fruits_copy[i][0])

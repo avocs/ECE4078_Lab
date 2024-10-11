@@ -3,6 +3,7 @@ import ast
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 
 def parse_map(fname : str) -> dict:
     with open(fname, 'r') as f:
@@ -110,17 +111,93 @@ def compute_rmse(points1, points2):
 #         json.dump(d, map_f, indent=4)
 
 
-# TODO added by sandra
-def save_transformed_points(us_vec_aligned, fname='lab_output/slamcentered.txt'):
-    d = {}
+# # TODO added new
+# def save_transformed_points(us_vec_aligned, fname='lab_output/slamcentered.txt'):
+#     d = {}
 
-    for i in range(len(taglist)):
-        d["aruco" + str(taglist[i]) + "_0"] = {"x": us_vec_aligned[0,i], "y": us_vec_aligned[1,i]}
+#     for i in range(len(taglist)):
+#         d["aruco" + str(taglist[i]) + "_0"] = {"x": us_vec_aligned[0,i], "y": us_vec_aligned[1,i]}
     
-    with open(fname, 'w') as aligned_f:
-        json.dump(d, aligned_f, indent=4)
+#     with open(fname, 'w') as aligned_f:
+#         json.dump(d, aligned_f, indent=4)
 
-    print("New Map saved!")
+#     print("New Map saved!")
+
+
+def manual_alignment(us_vec, gt_vec):
+    """
+    This function creates a Matplotlib figure with sliders for manual adjustment
+    of rotation (theta) and translation (x, y) to align estimated and ground truth poses.
+
+    Args:
+        us_vec: Estimated marker poses (2D numpy array).
+        gt_vec: Ground truth marker poses (2D numpy array).
+    """
+
+    # Initial values for sliders
+    theta = 0.0
+    x_translation = 0.0
+    y_translation = 0.0
+
+    # adding an origin
+    # us_vec = np.hstack((us_vec, np.zeros((2, 1))))
+    # gt_vec = np.hstack((gt_vec, np.zeros((2, 1))))
+
+    # Create the plot
+    fig, ax = plt.subplots()
+    ax.scatter(gt_vec[0, :], gt_vec[1, :], marker='o', color='C0', s=100, label='Ground Truth')
+    ax.scatter(us_vec[0, :], us_vec[1, :], marker='x', color='C1', s=100, label='Estimated')
+    # for i in range(len(taglist)):
+    for i in range(len(taglist)):
+        ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, taglist[i], color='C0', size=12)
+        ax.text(us_vec[0,i]+0.05, us_vec[1,i]+0.05, taglist[i], color='C1', size=12)
+    plt.title('Marker Alignment')
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.legend()
+    plt.grid(True)
+
+    # Define a function to update the plot based on slider values
+    def update(val):
+        theta = theta_slider.val
+        x_translation = x_slider.val
+        y_translation = y_slider.val
+
+        x = [[x_translation], [y_translation]]
+
+        # Apply transformation
+        us_vec_aligned = apply_transform(theta, x, us_vec.copy())
+
+        # Update plot with transformed estimated poses
+        ax.collections[1].set_offsets(us_vec_aligned.T)
+
+        # Clear and redraw text labels to avoid stacking
+        for text in ax.texts:
+            text.remove()
+        for i in range(len(taglist)):
+            ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, taglist[i], color='C0', size=12)
+            ax.text(us_vec_aligned[0, i] + 0.05, us_vec_aligned[1, i] + 0.05, taglist[i], color='C1', size=12)
+
+        fig.canvas.draw_idle()
+
+    # Create sliders
+    ax_theta = fig.add_axes([0.24, 0.05, 0.65, 0.01])
+    theta_slider = Slider(ax=ax_theta, label='Theta (Rotation)', valmin=-np.pi, valmax=np.pi, valinit=theta, valfmt='%1.3fpi')
+    ax_x = fig.add_axes([0.24, 0.025, 0.65, 0.01])
+    x_slider = Slider(ax=ax_x, label='X Translation', valmin=-3, valmax=3, valinit=x_translation, valfmt='%1.3f')
+    ax_y = fig.add_axes([0.24, 0.0, 0.65, 0.01])
+    y_slider = Slider(ax=ax_y, label='Y Translation', valmin=-3, valmax=3, valinit=y_translation, valfmt='%1.3f')
+
+    # Connect sliders to update function
+    theta_slider.on_changed(update)
+    x_slider.on_changed(update)
+    y_slider.on_changed(update)
+
+    # Display the plot
+    plt.show()
+
+    # Start the event loop
+    plt.ion()
 
 
 
@@ -129,8 +206,8 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser("Matching the estimated map and the true map")
-    parser.add_argument("groundtruth", type=str, help="The ground truth file name.")
-    parser.add_argument("estimate", type=str, help="The estimate file name.")
+    parser.add_argument("groundtruth", type=str, help="The ground truth file name.", default='fuck8.txt')
+    parser.add_argument("estimate", type=str, help="The estimate file name.", default='lab_output/slam.txt')
     args = parser.parse_args()
 
     gt_aruco = parse_map(args.groundtruth)
@@ -165,21 +242,23 @@ if __name__ == '__main__':
     for i in range(len(taglist)):
         print('%3d %9.2f %9.2f %9.2f %9.2f %9.2f %9.2f\n' % (taglist[i], gt_vec[0][i], us_vec_aligned[0][i], diff[0][i], gt_vec[1][i], us_vec_aligned[1][i], diff[1][i]))
     
-    ax = plt.gca()
-    ax.scatter(gt_vec[0,:], gt_vec[1,:], marker='o', color='C0', s=100)
-    ax.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], marker='x', color='C1', s=100)
-    for i in range(len(taglist)):
-        ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, taglist[i], color='C0', size=12)
-        ax.text(us_vec_aligned[0,i]+0.05, us_vec_aligned[1,i]+0.05, taglist[i], color='C1', size=12)
-    plt.title('Arena')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    ax.set_xticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
-    ax.set_yticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
-    plt.legend(['Real','Pred'])
-    plt.grid()
-    plt.show()
+    manual_alignment(us_vec, gt_vec)
 
-# TODO sandra fucks around again
+    # ax = plt.gca()
+    # ax.scatter(gt_vec[0,:], gt_vec[1,:], marker='o', color='C0', s=100)
+    # ax.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], marker='x', color='C1', s=100)
+    # for i in range(len(taglist)):
+    #     ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, taglist[i], color='C0', size=12)
+    #     ax.text(us_vec_aligned[0,i]+0.05, us_vec_aligned[1,i]+0.05, taglist[i], color='C1', size=12)
+    # plt.title('Arena')
+    # plt.xlabel('X')
+    # plt.ylabel('Y')
+    # ax.set_xticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
+    # ax.set_yticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
+    # plt.legend(['Real','Pred'])
+    # plt.grid()
+    # plt.show()
+
+# TODO new
 # update: this works, the transformed arucos are saved into a new map 
-    save_transformed_points(us_vec_aligned)
+    # save_transformed_points(us_vec_aligned)

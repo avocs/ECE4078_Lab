@@ -51,7 +51,7 @@ class Operate:
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=1, kp=5, ki=0, kd=0.001)  
+        self.pibot_control.set_pid(use_pid=1, kp=0.001, ki=0, kd=0.00)  
 
         self.lab_output_dir = 'lab_output/'
         if not os.path.exists(self.lab_output_dir):
@@ -125,6 +125,8 @@ class Operate:
         dt = time.time() - self.control_clock
         drive_meas = Drive(left_speed, right_speed, dt)
         self.control_clock = time.time()
+        curr_ticks = self.pibot_control.get_counter_values()
+        print(f"Curr ticks {curr_ticks}")
         return drive_meas
     
     # NOTE this one unused, but this drives by a fixed time
@@ -166,7 +168,7 @@ class Operate:
             curr_ticks = self.pibot_control.get_counter_values()
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            # print(f"Curr ticks: {curr_ticks}")
+            print(f"Curr ticks: {curr_ticks}")
             # NOTE: this needs to be tuned! 
             drive_meas = Drive(0.3*left_speed, 0.3*right_speed, dt)
             self.control_clock = time.time()
@@ -195,6 +197,8 @@ class Operate:
 
         self.control_clock = time.time()
 
+        self.take_pic()
+
         self.pibot_control.set_velocity([lv, rv])
 
         while True:
@@ -203,12 +207,15 @@ class Operate:
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
             if ticks_travelled_left >= 1 and ticks_travelled_right >= 1:
                 break
+        # self.take_pic()
         self.pibot_control.set_velocity([0,0])
+
+        # self.take_pic()
         dt = time.time() - self.control_clock
         drive_meas = Drive(0.3*lv, 0.3*rv, dt)
         measurements = self.slam_gui_update(drive_meas, canvas)
         # sleep between steps for 0.25s 
-        time.sleep(0.25)
+        time.sleep(0.3)
     
         return measurements
         
@@ -298,7 +305,7 @@ class Operate:
         print(f"Final pred pose {self.get_robot_pose()}")
         angle = self.ekf.robot.state[2,0] * 180/np.pi
         print(f"Angle: {angle}" )
-        return len(measurements)
+        return measurements
 
         
     # save SLAM map 
@@ -527,7 +534,7 @@ class Operate:
         plt.show() 
 
     def generate_path_astar(self, search_list, fruits_list, fruits_true_pos):
-        self.waypoints_list = astar.main()
+        self.waypoints_list = astar.main(args.map)
 
 
 ############################## D* LITE FUNCTIONS FOR OPERATE CLASS ########################
@@ -562,12 +569,14 @@ class Operate:
         '''
         if self.command['auto_fruit_search_astar']:
             print(f"Starting L2 auto_fruit_search..")
-            self.curr_waypoint_count = 0
+            # self.curr_waypoint_count = 0
+
             if any(self.waypoints_list):
                 # fruit number for printing purposes
                 curr_fruit = len(search_list) - len(self.waypoints_list) + 1
 
                 if self.waypoints_list[0]:
+
                     self.curr_waypoint_count += 1
 
                     # robot tries to drive to the waypoint
@@ -581,13 +590,15 @@ class Operate:
                     print()
                     
                     # localise self at every sub-waypoint except for first and last at that point
-                    if self.curr_waypoint_count > 1 and len(self.waypoints_list[0]) > 1:
+                    print(f"bla 0 {self.waypoints_list[0]}, {len(self.waypoints_list[0])}")
+                    if (self.curr_waypoint_count > 1) and (len(self.waypoints_list[0]) > 1):
                         self.localising_flag = True
                         self.localise_rotate_robot()
                         self.localising_flag = False
 
                     # remove that waypoint off the waypoint list
                     self.waypoints_list[0].pop(0)
+
                     print(f"New waypoints list: {self.waypoints_list}")
 
                     # if the waypoint is the last one in its list, means fruit is found
@@ -626,7 +637,7 @@ class Operate:
                     print("\n----------------------------------------------------------")
                     waypoint_to_go = self.waypoints_list[0][0]
                     print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {waypoint_to_go}")
-                    self.drive_to_point(waypoint_to_go, canvas)
+                    self.drive_to_point(waypoint_to_go)
                     robot_pose = self.get_robot_pose()
 
                     print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
@@ -673,7 +684,7 @@ class Operate:
 
 ########################## ROBOT DRIVE FUNCTIONS FOR OPERATE CLASS #####################
     # drive to a waypoint from current position
-    def drive_to_point(self, waypoint, canvas):
+    def drive_to_point(self, waypoint):
         '''
         Function for robot to drive to a waypoint through the following procedures:
         1. Turn to waypoint
@@ -721,12 +732,12 @@ class Operate:
         turning_angle_deg = np.rad2deg(turning_angle)
 
         abs_turning_angle_deg = abs(turning_angle_deg)
-        if abs_turning_angle_deg > 45:
-            tick_offset = 8
-        elif abs_turning_angle_deg > 30:
-            tick_offset = 5
-        else: 
-            tick_offset = 0
+        # if abs_turning_angle_deg > 45:
+        #     tick_offset = 8
+        # elif abs_turning_angle_deg > 30:
+        #     tick_offset = 5
+        # else: 
+        #     tick_offset = 0
 
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
@@ -742,7 +753,7 @@ class Operate:
         if turn_ticks != 0:
             num_ticks = turn_ticks
         else:
-            num_ticks = np.round(abs((turning_revolutions * self.ticks_per_revolution) + tick_offset))
+            num_ticks = np.round(abs(turning_revolutions * self.ticks_per_revolution))
         
         print(f' /// Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
 
@@ -849,10 +860,12 @@ class Operate:
         
         # Method 1: keeling myself
         # this should call for a rotate step and at the same time return its measurements 
-        while len(self.rotate_step()) <= 2:
+        while len(self.rotate_step()) < 2:
             num_rotations += 1
+            print(f'Rotation: {num_rotations}')
             if num_rotations >= num_turns:
                 break 
+            time.sleep(0.3)
 
         # some fucking bullshit here to handle this thing if it never sees two markers
         # currently fixed to just break out of the loop and drive as is
