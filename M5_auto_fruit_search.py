@@ -51,7 +51,7 @@ class Operate:
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=1, kp=0.001, ki=0, kd=0.00)  
+        self.pibot_control.set_pid(use_pid=1, kp=0.02, ki=0.0, kd=0.0001)  
 
         self.lab_output_dir = 'lab_output/'
         if not os.path.exists(self.lab_output_dir):
@@ -121,12 +121,13 @@ class Operate:
 
     # wheel control -- default for keyboard operation 
     def control(self):       
+        self.control_clock = time.time()
         left_speed, right_speed = self.pibot_control.set_velocity(self.command['wheel_speed'])
         dt = time.time() - self.control_clock
         drive_meas = Drive(left_speed, right_speed, dt)
         self.control_clock = time.time()
-        curr_ticks = self.pibot_control.get_counter_values()
-        print(f"Curr ticks {curr_ticks}")
+        # curr_ticks = self.pibot_control.get_counter_values()
+        print(f"Curr ticks {self.pibot_control.get_counter_values()}")
         return drive_meas
     
     # NOTE this one unused, but this drives by a fixed time
@@ -929,12 +930,16 @@ class Operate:
             # run estimations on the image saved 
             self.obj_est = obj_est.main()
 
-        self.command['detect_and_est_fruit'] = False
+            # generate new waypoints, not sure what to do with this ret value 
+            update_flag = self.path_update()
 
-        # generate new waypoints, not sure what to do with this ret value 
-        update_flag = self.path_update()
-    
-        return update_flag
+            self.command['detect_and_est_fruit'] = False
+
+            # generate new waypoints, not sure what to do with this ret value 
+            # update_flag = self.path_update()
+
+        # return update_flag
+        return None
 
 
     def path_update(self):
@@ -1018,10 +1023,10 @@ class Operate:
                 self.command['wheel_speed'] = [-0.7, -0.7]
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                self.command['wheel_speed'] = [-0.6, 0.6]
+                self.command['wheel_speed'] = [-0.45, 0.45]
             # turn right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                self.command['wheel_speed'] = [0.6, -0.6]
+                self.command['wheel_speed'] = [0.45, -0.45]
             # stop
             elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 self.command['wheel_speed'] = [0, 0]

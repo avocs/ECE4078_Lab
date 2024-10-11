@@ -152,16 +152,16 @@ class EKF:
         x = self.get_state_vector()                 # Obtaining the current state vector
         Q = self.predict_covariance(drive_meas)     # This is Sigma Q in lecture notes
         #TODO CHANGEF FRM 0.01 TO 0.1
-        Q[0:3,0:3] += 0.01*np.eye(3)                # Motion model's noise covariance matrix      
+        Q[0:3,0:3] += 0.1*np.eye(3)                # Motion model's noise covariance matrix      
 
         # TODO: add your codes here to compute the predicted x
 
         self.P = F @ self.P @ F.T + Q   # (bar sigma k) = A * (sigma k-1) * (A transpose) + (sigma Q)
                                         # Bar Sigma k in lecture notes is P
         # 1. Predict state by calling the drive function
-        # NOTE sandra is enabling this thing back again
-        self.set_state_vector(F @ x)
         self.robot.drive(drive_meas)
+        # NOTE sandra is disabling this thing back again
+        # self.set_state_vector(F @ x)
 
 
 
@@ -179,7 +179,7 @@ class EKF:
         R = np.zeros((2*len(measurements),2*len(measurements)))
         for i in range(len(measurements)):
             #TODO CHANGED Y=T=FRM 0.1 TO 0.01
-            R[2*i:2*i+2,2*i:2*i+2] = 0.1*np.eye(2)
+            R[2*i:2*i+2,2*i:2*i+2] = 0.01*np.eye(2)
 
         # Compute own measurements
         z_hat = self.robot.measure(self.markers, idx_list)              # This is h function

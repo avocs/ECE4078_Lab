@@ -115,4 +115,4 @@ if __name__ == '__main__':
     
     print("Average distances between the targets and the closest estimations:")
     print("redapple = {}, greenapple = {}, orange = {}, mango = {}, capsicum = {}".format(redapple_dist,greenapple_dist,orange_dist,mango_dist,capsicum_dist))
-    print("estimation error: ", av_dist)
+    print("estimation error: ", av_dist)     
