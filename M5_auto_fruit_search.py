@@ -1017,10 +1017,10 @@ class Operate:
         for event in pygame.event.get():
             # drive forward
             if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
-                self.command['wheel_speed'] = [0.7, 0.7]
+                self.command['wheel_speed'] = [0.6, 0.6]
             # drive backward
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
-                self.command['wheel_speed'] = [-0.7, -0.7]
+                self.command['wheel_speed'] = [-0.6, -0.6]
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
                 self.command['wheel_speed'] = [-0.45, 0.45]
@@ -1084,6 +1084,10 @@ class Operate:
             # enable/disable object detection 
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_p:
                 self.command['run_obj_detector'] = True
+
+            # save object detection outputs
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_n:
+                self.command['save_obj_detector'] = True
             
             # take fruit pic, save it, and estimate where it is 
             # at this point i dont give a fuck what the keybindings are
