@@ -165,8 +165,12 @@ def merge_estimations(object_map):
                 # default method, without filtering, to just round the mean to 1dp 
                 else: 
                         print('filter disabled')
-                        object_est[f'{OBJECT_TYPES[fruit_number - 1]}_finnofilt'] = {'x': x_mean, 'y': y_mean}
+                        object_est[f'{OBJECT_TYPES[fruit_number - 1]}'] = {'x': x_mean, 'y': y_mean}
                         # object_est[f'{OBJECT_TYPES[fruit_number - 1]}_finnofilt'] = {'x': x_median, 'y': y_median}
+
+            # otherwise the estimation is default to 0.0, 0.0
+            else:
+                object_est[f'{OBJECT_TYPES[fruit_number - 1]}'] = {'x': 0.0, 'y': 0.0}
 
     return object_est, fruit_est
 
