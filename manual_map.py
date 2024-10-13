@@ -25,7 +25,7 @@ def parse_map(fname : str) -> dict:
         print(aruco_dict)
     return aruco_dict
 
-def save_map(fname1="lab_output/slam_1110.txt", fname2="lab_output/objects.txt", fname3="newmap.txt"):
+def save_map(fname1="lab_output/slam_transformed.txt", fname2="lab_output/objects.txt", fname3="newmap.txt"):
 
     with open(fname1, 'r') as f:
         try:
@@ -131,8 +131,8 @@ def compute_rmse(points1, points2):
 
 
 
-# # TODO added new
-def save_transformed_points(us_vec_aligned, fname='lab_output/slamnewnew.txt'):
+# NOTE this saves the transformed points into new slam.txt file 
+def save_transformed_points(us_vec_aligned, fname='lab_output/slam_transformed.txt'):
     d = {}
 
     for i in range(len(taglist)):
@@ -141,11 +141,10 @@ def save_transformed_points(us_vec_aligned, fname='lab_output/slamnewnew.txt'):
     with open(fname, 'w') as aligned_f:
         json.dump(d, aligned_f, indent=4)
 
-    print("New Map saved!")
+    print(f"Transformed SLAM points saved as {fname}!")
 
 
-# TODO: need to add an origin there, and to add "origin" to taglist so it can be plotted out 
-
+#  NOTE here's the code for manual alignment
 def manual_alignment(us_vec, gt_vec):
     """
     This function creates a Matplotlib figure with sliders for manual adjustment
@@ -163,17 +162,21 @@ def manual_alignment(us_vec, gt_vec):
 
     # adding an origin
     us_vec = np.hstack((us_vec, np.zeros((2, 1))))
-    gt_vec = np.hstack((gt_vec, np.zeros((2, 1))))
+
+    if gt_vec.any():
+        gt_vec = np.hstack((gt_vec, np.zeros((2, 1))))
 
     new_taglist = np.append(taglist, 0)
 
     # Create the plot
     fig, ax = plt.subplots()
-    ax.scatter(gt_vec[0, :], gt_vec[1, :], marker='o', color='C0', s=100, label='Ground Truth')
+    if gt_vec.any():
+        ax.scatter(gt_vec[0, :], gt_vec[1, :], marker='o', color='C0', s=100, label='Ground Truth')
     ax.scatter(us_vec[0, :], us_vec[1, :], marker='x', color='C1', s=100, label='Estimated')
     # for i in range(len(taglist)):
     for i in range(len(new_taglist)):
-        ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, new_taglist[i], color='C0', size=12)
+        if gt_vec.any():
+            ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, new_taglist[i], color='C0', size=12)
         ax.text(us_vec[0,i]+0.05, us_vec[1,i]+0.05, new_taglist[i], color='C1', size=12)
     plt.title('Marker Alignment')
     plt.xlabel('X')
@@ -240,7 +243,7 @@ if __name__ == '__main__':
     parser.add_argument("--groundtruth", type=str, help="The ground truth file name.", default='fuck8.txt')
     parser.add_argument("--estimate", type=str, help="The estimate file name.", default='lab_output/slam.txt')
     parser.add_argument("--transformed", type=str, help="The transformed file name.", default='lab_output/slam_transformed.txt')
-    parser.add_argument("--combined", type=str, help="The combined estimate file name.", default='trueishmap.txt')
+    parser.add_argument("--combined", type=str, help="The combined estimate file name.", default='m5_map.txt')
     # NOTE changed this to parse known
     args, _ = parser.parse_known_args()
 
@@ -253,6 +256,7 @@ if __name__ == '__main__':
     us_vec = us_vec[:,idx]
     gt_vec = gt_vec[:, idx] 
 
+    # THIS PART IS TECHNICALLY CHEATING LMFAO
     theta, x = solve_umeyama2d(us_vec, gt_vec)
     us_vec_aligned = apply_transform(theta, x, us_vec)
     print(x)
@@ -278,7 +282,7 @@ if __name__ == '__main__':
         print('%3d %9.2f %9.2f %9.2f %9.2f %9.2f %9.2f\n' % (taglist[i], gt_vec[0][i], us_vec_aligned[0][i], diff[0][i], gt_vec[1][i], us_vec_aligned[1][i], diff[1][i]))
     
 
-    # show result of slam_eval with 
+    # show result of slam_eval AS NORMAL  
     ax = plt.gca()
     ax.scatter(gt_vec[0,:], gt_vec[1,:], marker='o', color='C0', s=100)
     ax.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], marker='x', color='C1', s=100)
@@ -321,14 +325,11 @@ if __name__ == '__main__':
     for i in range(len(taglist)):
         print('%3d %9.2f %9.2f %9.2f %9.2f %9.2f %9.2f\n' % (taglist[i], gt_vec[0][i], us_vec_aligned[0][i], diff[0][i], gt_vec[1][i], us_vec_aligned[1][i], diff[1][i]))
     
-    # save these points in a file
-    save_transformed_points(us_vec_aligned)
+    # save these manually transformed points in a file
+    save_transformed_points(us_vec_aligned, args.transformed)
 
-
-    
-
-    # map can now combine slam est with fruit ests as a true map that can be read in :)
-    save_map()
+    # # map can now combine slam est with fruit ests as a true map that can be read in :)
+    # save_map(fname1=args.transformed, fname3=args.combined)
 
 
 
