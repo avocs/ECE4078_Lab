@@ -143,7 +143,7 @@ def main(map=""):
     
     # Wanted Search List
     # search_list =   ['orange', 'redapple']
-    search_list =   ['redapple', 'greenapple', 'orange']
+    search_list =   ['redapple',  'orange','greenapple']
     # search_list =   ['redapple', 'capsicum', 'orange']
     # search_list =   ['mango']
     search_index = []

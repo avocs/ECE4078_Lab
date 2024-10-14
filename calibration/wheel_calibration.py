@@ -173,8 +173,8 @@ def find_num_ticks_rotate():
     wheel_speed_range = [[-0.4, 0.4], [-0.45, 0.45], [-0.5, 0.5]]
     angle_range = [-np.pi/4 ,-np.pi/2, np.pi, -np.pi]
     delta_ticks = []
-    wheel_rot_speed= 0.8
-    wheel_rot_speed_offset = 0.1
+    wheel_rot_speed= 0.55
+    wheel_rot_speed_offset = 0.0
 
 
     for angle in angle_range:

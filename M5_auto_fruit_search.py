@@ -51,7 +51,7 @@ class Operate:
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=1, kp=0.02, ki=0.0, kd=0.0001)  
+        self.pibot_control.set_pid(use_pid=1, kp=0.2, ki=0.0, kd=0.0001)  
 
         self.lab_output_dir = 'lab_output/'
         if not os.path.exists(self.lab_output_dir):
@@ -107,11 +107,12 @@ class Operate:
         self.waypoints_list = []
         self.obj_est = {}
         self.curr_waypoint_count = 0
+        self.total_waypoints_gone = 0
         self.localising_flag = False
         self.prev_pose = np.zeros((3,1))
         self.guessed_pose = np.zeros((3,1))
         self.pos_read_flag = False
-        self.camera_offset = 0.17   # NOTE: measured from front of car to front of ECE4078 label on car
+        self.camera_offset = 0.1   # NOTE: measured from front of car to front of ECE4078 label on car
         self.wheel_diameter = 68e-3 # yoinked from cytron 
         self.ticks_per_revolution = 20
 
@@ -577,7 +578,7 @@ class Operate:
                 curr_fruit = len(search_list) - len(self.waypoints_list) + 1
 
                 if self.waypoints_list[0]:
-
+                    self.total_waypoints_gone += 1
                     self.curr_waypoint_count += 1
 
                     # robot tries to drive to the waypoint
@@ -591,8 +592,11 @@ class Operate:
                     print()
                     
                     # localise self at every sub-waypoint except for first and last at that point
-                    print(f"bla 0 {self.waypoints_list[0]}, {len(self.waypoints_list[0])}")
-                    if (self.curr_waypoint_count > 1) and (len(self.waypoints_list[0]) > 1):
+                    # print(f"bla 0 {self.waypoints_list[0]}, {len(self.waypoints_list[0])}")
+                    # if (self.curr_waypoint_count > 1) and (len(self.waypoints_list[0]) > 1):
+
+                    # do localising everywhere except the very first waypt
+                    if (self.total_waypoints_gone > 1):
                         self.localising_flag = True
                         self.localise_rotate_robot()
                         self.localising_flag = False
@@ -616,6 +620,7 @@ class Operate:
                 print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
                 print("Waypoint list is empty.\n\n")
                 self.curr_waypoint_count = 0
+                self.total_waypoints_gone = 0
                 self.waypoints_list = []
                 self.command['auto_fruit_search_astar'] = False
     
@@ -723,7 +728,7 @@ class Operate:
         return None
     
 
-    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.4, rotate_speed_offset=0.05):
+    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.5, rotate_speed_offset=0.05):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
         '''
@@ -733,12 +738,12 @@ class Operate:
         turning_angle_deg = np.rad2deg(turning_angle)
 
         abs_turning_angle_deg = abs(turning_angle_deg)
-        # if abs_turning_angle_deg > 45:
-        #     tick_offset = 8
-        # elif abs_turning_angle_deg > 30:
-        #     tick_offset = 5
-        # else: 
-        #     tick_offset = 0
+        if abs_turning_angle_deg > 50:
+            tick_offset = 3
+        elif abs_turning_angle_deg > 30:
+            tick_offset = 0
+        else: 
+            tick_offset = 0
 
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
@@ -754,7 +759,7 @@ class Operate:
         if turn_ticks != 0:
             num_ticks = turn_ticks
         else:
-            num_ticks = np.round(abs(turning_revolutions * self.ticks_per_revolution))
+            num_ticks = np.round(abs(turning_revolutions * self.ticks_per_revolution)) + tick_offset
         
         print(f' /// Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
 
@@ -829,11 +834,10 @@ class Operate:
         target_confirmation_count = 5
         counter = 0
         while True:
-            if counter >= 20:                   # this is taking too long
-                break
+            # if counter >= 20:                   # this is taking too long
+            #     break
             self.control_zero_ticks()
             # curr_best_pose = self.get_robot_pose()
-
             # this waits until the pose is stabilised within 0.005
             # ---- scuffed ass np call
             if np.all(np.abs(np.array(self.get_robot_pose()) - np.array(robot_pose)) < 0.005):

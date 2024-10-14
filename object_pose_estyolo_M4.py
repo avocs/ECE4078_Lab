@@ -41,8 +41,8 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
 
 
     # seems to be the best for now considering how scuffed our caps bounding box is 
-    object_dimensions_dict = {'1': [0.074,0.074,0.090], '2': [0.081, 0.081, 0.074], 
-                              '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.058], 
+    object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.081, 0.081, 0.074], 
+                              '3': [0.075, 0.075, 0.075], '4': [0.113, 0.067, 0.056], 
                               '5': [0.074, 0.074, 0.102]}
     
 
