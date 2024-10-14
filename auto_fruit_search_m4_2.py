@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 from slam.aruco_sensor import Marker
 import copy
 import a_star_path_planning as astar
-import object_pose_estyolo as obj_est
+import object_pose_est_yolo as obj_est
 
 
 class Operate:

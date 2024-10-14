@@ -97,20 +97,6 @@ def compute_rmse(points1, points2):
     return np.sqrt(MSE)
 
 
-# NOTE added by sandra
-def save_transformed_points(us_vec_aligned, fname='lab_output/slamcentered.txt'):
-    d = {}
-
-    for i in range(len(taglist)):
-        d["aruco" + str(taglist[i]) + "_0"] = {"x": us_vec_aligned[0,i], "y": us_vec_aligned[1,i]}
-    
-    with open(fname, 'w') as aligned_f:
-        json.dump(d, aligned_f, indent=4)
-
-    print("Aligned map saved!")
-
-
-
 if __name__ == '__main__':
     import argparse
 
@@ -165,6 +151,3 @@ if __name__ == '__main__':
     plt.legend(['Real','Pred'])
     plt.grid()
     plt.show()
-
-    # NOTE added by sandra
-    save_transformed_points(us_vec_aligned)

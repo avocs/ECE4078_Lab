@@ -17,7 +17,7 @@ pip install opencv-contrib-python==4.6.0.66
 
 1. Command Prompt
 ```python
-ssh pi@192.168.137.22
+ssh pi@192.168.137.45
 raspberrypi
 cd ECE4078_MY
 python listen.py
@@ -32,7 +32,7 @@ venv2\scripts\activate
 
 3. Operate
 
-`python operate.py --ip 192.168.137.22`
+`python operate.py --ip 192.168.137.45`
 
 As of M3, operate.py takes in the following arguments:
 

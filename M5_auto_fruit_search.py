@@ -29,9 +29,9 @@ import matplotlib.pyplot as plt
 from slam.aruco_sensor import Marker
 import copy
 import a_star_path_planning as astar
-import d_star_lite_path_planning as dstar
-from d_star_lite_path_planning import Node, DStarLite
-import object_pose_estyolo_M4 as obj_est
+# import d_star_lite_path_planning as dstar
+# from d_star_lite_path_planning import Node, DStarLite
+import object_pose_est_yolo as obj_est
 
 
 class Operate:
@@ -541,24 +541,24 @@ class Operate:
 
 ############################## D* LITE FUNCTIONS FOR OPERATE CLASS ########################
     
-    def generate_path_dstar(self):
-        self.ox, self.oy = dstar.generate_obstacles(fruit_true_pos, aruco_true_pos)
-        self.path_algo = DStarLite(self.ox, self.oy)
+    # def generate_path_dstar(self):
+    #     self.ox, self.oy = dstar.generate_obstacles(fruit_true_pos, aruco_true_pos)
+    #     self.path_algo = DStarLite(self.ox, self.oy)
 
-        sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L2(fruit_goals, aruco_true_pos)
+    #     sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L2(fruit_goals, aruco_true_pos)
         
-        # Reset waypoints list 
-        self.waypoints_list = []
-        for i in range(len(sx)):
-            # ive got no fucking clue what is happening here 
-            _, pathx, pathy = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
-            pathx.pop(0)
-            pathy.pop(0)
-            temp = [[x/10.0,y/10.0] for x, y in zip(pathx, pathy)]
-            self.waypoints_list.append(temp)
+    #     # Reset waypoints list 
+    #     self.waypoints_list = []
+    #     for i in range(len(sx)):
+    #         # ive got no clue what is happening here 
+    #         _, pathx, pathy = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
+    #         pathx.pop(0)
+    #         pathy.pop(0)
+    #         temp = [[x/10.0,y/10.0] for x, y in zip(pathx, pathy)]
+    #         self.waypoints_list.append(temp)
             
-        # Feedback
-        print(f"Path generated: {self.waypoints_list}")
+    #     # Feedback
+    #     print(f"Path generated: {self.waypoints_list}")
 
 
 
@@ -946,71 +946,71 @@ class Operate:
         return None
 
 
-    def path_update(self):
+    # def path_update(self):
 
-        update_flag= False
+    #     update_flag= False
 
-        # check if the fruit is in the list
-        if self.obj_est is not None:
-            for label, pose in self.obj_est.items():
-                if label not in fruit_list: 
-                    fruit_x= pose['x']
-                    fruit_y= pose['y']
+    #     # check if the fruit is in the list
+    #     if self.obj_est is not None:
+    #         for label, pose in self.obj_est.items():
+    #             if label not in fruit_list: 
+    #                 fruit_x= pose['x']
+    #                 fruit_y= pose['y']
 
-                    # what is going on here 
-                    # snap to grid
-                    fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
-                    fruit_y = dstar.round_nearest(fruit_y, 0.4)
+    #                 # what is going on here 
+    #                 # snap to grid
+    #                 fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
+    #                 fruit_y = dstar.round_nearest(fruit_y, 0.4)
                     
-                    fruit_coord= np.array([fruit_x,fruit_y])
-                    print(f"Fruit detected: {fruit_coord}")
+    #                 fruit_coord= np.array([fruit_x,fruit_y])
+    #                 print(f"Fruit detected: {fruit_coord}")
 
-                    if self.spoofed_obs:
-                        if not(fruit_coord==self.spoofed_obs).all(1).any():
-                            self.spoofed_obs.append(fruit_coord)
-                            print(f"New obstacle detected at position:{fruit_coord}")
-                            update_flag = True
+    #                 if self.spoofed_obs:
+    #                     if not(fruit_coord==self.spoofed_obs).all(1).any():
+    #                         self.spoofed_obs.append(fruit_coord)
+    #                         print(f"New obstacle detected at position:{fruit_coord}")
+    #                         update_flag = True
 
-                        else: 
-                            self.spoofed_obs.append(fruit_coord)
-                            print(f"New obstacle detected at position:{fruit_coord}")
-                            update_flag = True
+    #                     else: 
+    #                         self.spoofed_obs.append(fruit_coord)
+    #                         print(f"New obstacle detected at position:{fruit_coord}")
+    #                         update_flag = True
 
-                    # if the code calls to update
-                    if update_flag:
-                        obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
-                        self.ox.extend(obs_x)
-                        self.oy.extend(obs_y)
-                        self.path_algo= DStarLite(self.ox,self.oy)
+    #                 # if the code calls to update
+    #                 if update_flag:
+    #                     obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
+    #                     self.ox.extend(obs_x)
+    #                     self.oy.extend(obs_y)
+    #                     self.path_algo= DStarLite(self.ox,self.oy)
 
-                        # im not even gonna mess with htis number anymore... 
-                        current_pose = self.get_robot_pose
-                        current_x = current_pose[0]
-                        current_y = current_pose[1]
-                        rounded_x = dstar.round_nearest(current_x,0.2)
-                        rounded_y = dstar.round_nearest(current_y,0.2)
-                        current_pose = [rounded_x,rounded_y]
+    #                     # im not even gonna mess with htis number anymore... 
+    #                     current_pose = self.get_robot_pose
+    #                     current_x = current_pose[0]
+    #                     current_y = current_pose[1]
+    #                     rounded_x = dstar.round_nearest(current_x,0.2)
+    #                     rounded_y = dstar.round_nearest(current_y,0.2)
+    #                     current_pose = [rounded_x,rounded_y]
 
-                        # what even 
-                        sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
+    #                     # what even 
+    #                     sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
 
-                        # generate new path
-                        new_waypoints_list= []
-                        for i in range (len(sx)):
-                            _, path_x, path_y = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
-                            path_x.pop(0)
-                            path_y.pop(0)
-                            temp = [[x/10.0,y/10.0] for x, y in zip(path_x, path_y)]
-                            self.new_waypoints_list.append(temp)
+    #                     # generate new path
+    #                     new_waypoints_list= []
+    #                     for i in range (len(sx)):
+    #                         _, path_x, path_y = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
+    #                         path_x.pop(0)
+    #                         path_y.pop(0)
+    #                         temp = [[x/10.0,y/10.0] for x, y in zip(path_x, path_y)]
+    #                         self.new_waypoints_list.append(temp)
 
-                        self.waypoints_list = new_waypoints_list
-                        self.waypoints_list[0].insert(0,current_pose)
+    #                     self.waypoints_list = new_waypoints_list
+    #                     self.waypoints_list[0].insert(0,current_pose)
 
-                        print(f"\n\nNew path generated: {self.waypoints_list}")
+    #                     print(f"\n\nNew path generated: {self.waypoints_list}")
 
-                    return update_flag
+    #                 return update_flag
                 
-        return None
+    #     return None
         
 
 
@@ -1094,7 +1094,7 @@ class Operate:
                 self.command['save_obj_detector'] = True
             
             # take fruit pic, save it, and estimate where it is 
-            # at this point i dont give a fuck what the keybindings are
+            # at this point idgaf what the keybindings are
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
                 self.command['detect_and_est_fruit'] = True
 
