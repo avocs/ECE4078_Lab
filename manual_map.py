@@ -257,46 +257,46 @@ if __name__ == '__main__':
     gt_vec = gt_vec[:, idx] 
 
     # THIS PART IS TECHNICALLY CHEATING LMFAO
-    theta, x = solve_umeyama2d(us_vec, gt_vec)
-    us_vec_aligned = apply_transform(theta, x, us_vec)
-    print(x)
+    # theta, x = solve_umeyama2d(us_vec, gt_vec)
+    # us_vec_aligned = apply_transform(theta, x, us_vec)
+    # print(x)
     
-    diff = gt_vec - us_vec_aligned
-    rmse = compute_rmse(us_vec, gt_vec)
-    rmse_aligned = compute_rmse(us_vec_aligned, gt_vec)
+    # diff = gt_vec - us_vec_aligned
+    # rmse = compute_rmse(us_vec, gt_vec)
+    # rmse_aligned = compute_rmse(us_vec_aligned, gt_vec)
     
-    print()
-    print("The following parameters optimally transform the estimated points to the ground truth.")
-    print("Rotation Angle: {}".format(theta))
-    print("Translation Vector: ({}, {})".format(x[0,0], x[1,0]))
+    # print()
+    # print("The following parameters optimally transform the estimated points to the ground truth.")
+    # print("Rotation Angle: {}".format(theta))
+    # print("Translation Vector: ({}, {})".format(x[0,0], x[1,0]))
     
-    print()
-    print("Number of found markers: {}".format(len(taglist)))
-    print("RMSE before alignment: {}".format(rmse))
-    print("RMSE after alignment:  {}".format(rmse_aligned))
+    # print()
+    # print("Number of found markers: {}".format(len(taglist)))
+    # print("RMSE before alignment: {}".format(rmse))
+    # print("RMSE after alignment:  {}".format(rmse_aligned))
 
-    print()
-    print('%s %7s %9s %7s %11s %9s %7s' % ('Marker', 'Real x', 'Pred x', 'Δx', 'Real y', 'Pred y', 'Δy'))
-    print('-----------------------------------------------------------------')
-    for i in range(len(taglist)):
-        print('%3d %9.2f %9.2f %9.2f %9.2f %9.2f %9.2f\n' % (taglist[i], gt_vec[0][i], us_vec_aligned[0][i], diff[0][i], gt_vec[1][i], us_vec_aligned[1][i], diff[1][i]))
+    # print()
+    # print('%s %7s %9s %7s %11s %9s %7s' % ('Marker', 'Real x', 'Pred x', 'Δx', 'Real y', 'Pred y', 'Δy'))
+    # print('-----------------------------------------------------------------')
+    # for i in range(len(taglist)):
+    #     print('%3d %9.2f %9.2f %9.2f %9.2f %9.2f %9.2f\n' % (taglist[i], gt_vec[0][i], us_vec_aligned[0][i], diff[0][i], gt_vec[1][i], us_vec_aligned[1][i], diff[1][i]))
     
 
-    # show result of slam_eval AS NORMAL  
-    ax = plt.gca()
-    ax.scatter(gt_vec[0,:], gt_vec[1,:], marker='o', color='C0', s=100)
-    ax.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], marker='x', color='C1', s=100)
-    for i in range(len(taglist)):
-        ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, taglist[i], color='C0', size=12)
-        ax.text(us_vec_aligned[0,i]+0.05, us_vec_aligned[1,i]+0.05, taglist[i], color='C1', size=12)
-    plt.title('Arena')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    ax.set_xticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
-    ax.set_yticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
-    plt.legend(['Real','Pred'])
-    plt.grid()
-    plt.show()
+    # # show result of slam_eval AS NORMAL  
+    # ax = plt.gca()
+    # ax.scatter(gt_vec[0,:], gt_vec[1,:], marker='o', color='C0', s=100)
+    # ax.scatter(us_vec_aligned[0,:], us_vec_aligned[1,:], marker='x', color='C1', s=100)
+    # for i in range(len(taglist)):
+    #     ax.text(gt_vec[0,i]+0.05, gt_vec[1,i]+0.05, taglist[i], color='C0', size=12)
+    #     ax.text(us_vec_aligned[0,i]+0.05, us_vec_aligned[1,i]+0.05, taglist[i], color='C1', size=12)
+    # plt.title('Arena')
+    # plt.xlabel('X')
+    # plt.ylabel('Y')
+    # ax.set_xticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
+    # ax.set_yticks([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])
+    # plt.legend(['Real','Pred'])
+    # plt.grid()
+    # plt.show()
 
 
     # NOTE me when i make changes
