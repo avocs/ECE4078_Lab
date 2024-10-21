@@ -49,6 +49,7 @@ import matplotlib.pyplot as plt
 import copy
 import json
 import ast
+import time
 
 # Define the Cell class
 class Cell:
@@ -60,27 +61,31 @@ class Cell:
         self.h = 0  # Heuristic cost from this cell to destination
 
 # Define the size of the grid
-ROW = 33
-COL = 33
+ROW_Y = 33
+COL_X = 33
 
 # Defining Global Variables
 global printingFlag, printingTestFlag, plotFlag, modificationFlag
 global how_far_from_fruits, impactRadiusSize, spacing, divisor, thresholdDistance
-global segementedFile
+global segementedFile, bufferThreshold
 printingFlag = False
 printingTestFlag = False
 plotFlag = True
 modificationFlag = False
 
-how_far_from_fruits = 0.3
-impactRadiusSize = 0.1
+how_far_from_fruits = 0.1
+impactRadiusSize = 0.1 # space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
+bot_size = 0.15
+start = -160
+end = 170
 spacing = 10
 divisor = 0.01
+roundingNumbder = 3
 thresholdDistance = 0
-# map_file = 'testingmap1.txt'
-map_file = 'm4demo.txt'
+bufferThreshold = 0.2
+map_file = 'fuck12.txt'
 segementedFile = True
-numberOfFruits = 15
+numberOfFruits = 13
 
 
 '''
@@ -91,6 +96,7 @@ numberOfFruits = 15
 ##################################################################################################
 '''
 def main(map="", search_list=[]):
+    global bufferThreshold
 
     #####################
     ## DEFINE VARIABLES
@@ -100,16 +106,16 @@ def main(map="", search_list=[]):
     '''
 
     # Alphabetical Names of fruits
-    fruits_list=  ['redapple', 'greenapple', 'orange', 'mango', 'capsicum']
-    # fruits_list=  ['redapple', 'greenapple', 'orange']
+    if numberOfFruits == 15:
+        fruits_list=  ['redapple', 'greenapple', 'orange', 'mango', 'capsicum']
+    else:
+        fruits_list=  ['redapple', 'greenapple', 'orange']
 
 
     if map != "":
         positions = read_positions(map)
         aruco_true_pos = []
         fruits_true_pos = []
-        # aruco_true_pos = np.zeros([10,2])
-        # fruits_true_pos = np.zeros([5,2])
 
         for i in range(10):
             aruco_true_pos.append(positions[i])
@@ -148,8 +154,8 @@ def main(map="", search_list=[]):
     else:
         # Go to default
         search_list =   ['redapple',  'orange','greenapple']
-        # search_list =   ['redapple', 'capsicum', 'orange']
-        # search_list =   ['mango']
+    # search_list =   ['redapple', 'capsicum', 'orange']
+    # search_list =   ['mango']
     search_index = []
     search_true_pos = []
     all_fruits_waypoints_list = []
@@ -187,65 +193,73 @@ def main(map="", search_list=[]):
 
         # Obtain the first destination coordinates from the search list
         dest_coord = search_true_pos[i]
-        
-        
-        #     print("J value: ", j)
-        # print("Final!:", dest_coord)
+
 
         # Call the Convert Coordinates to Grid Function to convert dest_coord to dest_grid
         dest_grid = convert_coord_to_grid(dest_coord)
-        # print("Dest Grid: ", dest_grid)
-        
 
+        # print("LOOP I : ", i)
+        # print(f"Aruco: {aruco_true_pos}\nSeach: {search_index[i]},\nFruit Pos: {fruits_true_pos}")
         # Call the Modify Obstacles Function to modify the grid every new run. Setting the current destination as an obstacle and the next destination as not an obstacle
         grid = modify_obstacles(aruco_true_pos, search_index[i], fruits_true_pos)
+        bufferThreshold = 0.2
+
+
+        # distances = []
+
+        # col = fruits_true_pos[search_index[i]][0]
+        # row = fruits_true_pos[search_index[i]][1]
+
+        # for j in range(len(aruco_true_pos)):
+        #     value = calculate_h_value(row, col, aruco_true_pos[j])
+        #     distances.append(value)
+        #     # print("Distance ", i, " ", value)
         
-        distances = []
-        # print(search_index)
-        col = fruits_true_pos[search_index[i]][0]
-        row = fruits_true_pos[search_index[i]][1]
-        for j in range(len(aruco_true_pos)):
-            value = calculate_h_value(row, col, aruco_true_pos[j])
-            distances.append(value)
-            # print("Distance ", i, " ", value)
+        # count = 0
+        # # for k in range(len(aruco_true_pos)):
+        # #     if distances[k] <= thresholdDistance:
+        # #         count += 1
         
-        count = 0
-        for k in range(len(aruco_true_pos)):
-            if distances[k] <= thresholdDistance:
-                count += 1
-        
-        if count >= 1:
-            dest_grid = modify_destinations(dest_grid, grid)
-            # print("Came here!")
-        else:
-            # print("Else!")
-            for l in range (len(dest_coord)):
-            # print(dest_coord)
-            # print(dest_coord[j])
-                if dest_coord[l] < 0:
-                    dest_coord[l] += how_far_from_fruits
-                    
-                else:
-                    dest_coord[l] -= how_far_from_fruits
-                dest_coord[l] = round(dest_coord[l], 2)
-            dest_grid = convert_coord_to_grid(dest_coord)
+        # if count >= 1:
+        #     dest_grid = modify_destinations(dest_grid, grid)
+        #     # print("Came here!")
+        # else:
+        #     # print("Else!")
+        for l in range (len(dest_coord)):
+        # print(dest_coord)
+        # print(dest_coord[j])
+            if dest_coord[l] < 0:
+                dest_coord[l] += how_far_from_fruits
+                
+            else:
+                dest_coord[l] -= how_far_from_fruits
+            dest_coord[l] = round(dest_coord[l], 2)
+        dest_grid = convert_coord_to_grid(dest_coord)
 
         
 
         # Obtain the array of waypoints
         waypoints = a_star_search(grid, src_grid, dest_grid)
-
-        ##################### PRINT STATEMENTS
-        # print(waypoints)
-        ##################### 
+        modi_waypoints = []
+        count = 0
+        for points in waypoints:
+            # print(f"Point {count +1}: {points}")
+            distance = round(euclidean_distance(search_true_pos[i], points),2)
+            # print(f"Distance: {distance}")
+            if distance < 0.15:
+                # print("Out!")
+                break
+            else:
+                count += 1
 
         # Calling the plot waypoints function to plot the waypoints on a graph for better visualisation
-        if modificationFlag:
-            modi_waypoints = modify_waypoints(waypoints, search_true_pos[i])
-            waypoints_lists = [waypoint.tolist() for waypoint in modi_waypoints]
-            # print(waypoints_lists)
-        else:
-            waypoints_lists = waypoints
+        # if modificationFlag:
+        #     modi_waypoints = modify_waypoints(waypoints, search_true_pos[i])
+        #     waypoints_lists = [waypoint.tolist() for waypoint in modi_waypoints]
+        #     # print(waypoints_lists)
+        # else:
+        waypoints_lists = waypoints[:count]
+        print(waypoints_lists)
 
         ##################### 
         # Simplifying the waypoints by calling a simplified path
@@ -269,7 +283,11 @@ def main(map="", search_list=[]):
 
     return all_fruits_waypoints_list
 
-
+def euclidean_distance(point1, point2):
+    distance = 0.0
+    for i in range(len(point1)):
+        distance += (point2[i] - point1[i]) ** 2
+    return math.sqrt(distance)
 
 '''
 ##################################################################################################
@@ -305,7 +323,7 @@ def read_positions(file_path):
 ##################### 
 # Check if a cell is valid (within the grid)
 def is_valid(row, col):
-    return (row >= 0) and (row < ROW) and (col >= 0) and (col < COL)
+    return (row >= 0) and (row < ROW_Y) and (col >= 0) and (col < COL_X)
 
 ##################### 
 # Check if a cell is unblocked
@@ -319,7 +337,7 @@ def is_destination(row, col, dest):
 
 ##################### 
 # Check if a cell is within range
-def is_within_range(row, col, dest, threshold=3.5):
+def is_within_range(row, col, dest, threshold=3):
     distance = calculate_h_value(row, col, dest)
     # print("Distance is: ", distance)
     return distance <= threshold
@@ -368,30 +386,18 @@ def trace_path(cell_details, dest):
     # PRINTING OF ACTUAL PATH
     path_coord = convert_grid_to_coord(path).tolist()
 
-    # # Print the path
+    # Print the path
     # for i in path_coord:
     #     print("->", i, end=" ")
         
-    print()
+    # print()
 
     return path
-
-
-##################### 
-##################### 
-
-# def is_safe(grid, i, j, buffer_distance):
-#     for dx in range(-buffer_distance, buffer_distance + 1):
-#         for dy in range(-buffer_distance, buffer_distance + 1):
-#             new_i = i + dx
-#             new_j = j + dy
-#             if is_valid(new_i, new_j) and not is_unblocked(grid, new_i, new_j):
-#                 return False  # If any surrounding cell is blocked, it's not safe
-#     return True
 
 # Implement the A* search algorithm
 def a_star_search(grid, src, dest):
     global plotFlag
+    grid[dest[0]][dest[1]] = 1
     # Check if the source and destination are valid
     if not is_valid(src[0], src[1]) or not is_valid(dest[0], dest[1]):
         print("Source or destination is invalid")
@@ -415,9 +421,9 @@ def a_star_search(grid, src, dest):
         return
 
     # Initialize the closed list (visited cells)
-    closed_list = [[False for _ in range(COL)] for _ in range(ROW)]
+    closed_list = [[False for _ in range(COL_X)] for _ in range(ROW_Y)]
     # Initialize the details of each cell
-    cell_details = [[Cell() for _ in range(COL)] for _ in range(ROW)]
+    cell_details = [[Cell() for _ in range(COL_X)] for _ in range(ROW_Y)]
 
     # Initialize the start cell details
     i = src[0]
@@ -454,6 +460,7 @@ def a_star_search(grid, src, dest):
 
             # If the successor is valid, unblocked, and not visited
             if is_valid(new_i, new_j) and is_unblocked(grid, new_i, new_j) and not closed_list[new_i][new_j]:
+            # if is_valid(new_i, new_j) and is_unblocked(grid, new_i, new_j):
                 # if not (is_safe(grid, new_i, new_j, bufferDistance)):
 
                     
@@ -501,7 +508,7 @@ def a_star_search(grid, src, dest):
 ##################### 
 # PATH SIMPLICATION
 # intention is to cut down on number of waypoints required to travel 
-def simplify_path(all_waypoints, threshold=0.4):
+def simplify_path(all_waypoints, threshold=0.75):
     new_path = []
 
     if printingTestFlag:
@@ -533,6 +540,10 @@ def simplify_path(all_waypoints, threshold=0.4):
     # add in final waypoint
     new_path.append(all_waypoints[-1])
 
+    # TODO
+    # Second iterations
+
+    # TODO
     for i in new_path:
         print("->", i, end=" ")
         
@@ -557,12 +568,13 @@ def simplify_path(all_waypoints, threshold=0.4):
 #       search_fruit_ind
 #       fruits_true_pos
 # Returns:
-#       A ROW by COL grid
+#       A ROW_Y by COL_X grid
 
 # Function:
 # This is to modify the grid. Essentially. How it works is that a destination cannot be denoted as an obstacle. Instead, it must be taken as the destination.
 # However, after we arrive at that destination, we have to turn it back into an obstacle, and make the new destination not an obstacle.
 def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
+    global bufferThreshold
 
     ##################### PRINTING STATEMENTS #####################
     if printingTestFlag:
@@ -570,7 +582,7 @@ def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
     ###############################################################
 
     # Declaring Variables
-    grid = np.ones([ROW, COL], dtype = int) # 1 MEANS NO OBSTACLE
+    grid = np.ones([ROW_Y, COL_X], dtype = int) # 1 MEANS NO OBSTACLE
     obstacle_grid_list  = []
     obstacles_coord_list = []
 
@@ -581,7 +593,44 @@ def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
     fruits_copy.pop(search_fruit_ind)
 
     # Concatenating the obstacles
-    obstacles_coord_list = aruco_true_pos + fruits_copy
+    obstacles_coord_list = aruco_true_pos
+
+    directions = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
+    additional_surroundings = []
+
+    # Check if the obstacles are 10 cm away
+    # for i in range (len(obstacles_coord_list)):
+    #     check_x = round((directions[j][0]*0.1 + obstacles_coord_list[i][0]),3)
+    #     check_y = round((directions[j][1]*0.1 + obstacles_coord_list[i][1]),3)
+
+
+
+
+    for obstacle in obstacles_coord_list:
+        bufferThreshold = 0.20  # Set the buffer threshold initially
+        while bufferThreshold > 0:  
+            # print(f"Buffer Threshold! {bufferThreshold}")
+            for direction in directions:
+                new_buffer_x = round((direction[0] * bufferThreshold + obstacle[0]), 3)
+                new_buffer_y = round((direction[1] * bufferThreshold + obstacle[1]), 3)
+                
+                # Check if the new coordinates match the fruit position
+                if not (new_buffer_x == fruits_true_pos[search_fruit_ind][0] and new_buffer_y == fruits_true_pos[search_fruit_ind][1]):
+                    new_obs = [new_buffer_x, new_buffer_y]
+                    if new_obs in additional_surroundings:
+                        pass
+                    else:
+                        additional_surroundings.append([new_buffer_x, new_buffer_y])
+                    # print(f"New Buffer: X: {new_buffer_x}, Y: {new_buffer_y}")
+
+            # Reduce buffer threshold to move inward
+            bufferThreshold -= spacing * divisor
+            bufferThreshold = round(bufferThreshold, 2)
+
+    obstacles_coord_list = obstacles_coord_list + additional_surroundings + fruits_copy
+
+    # obstacles_coord_list = obstacles_coord_list + fruits_copy
+    # print(obstacles_coord_list)
 
     # Convert the obstacle coordinates to a obstacle grid
     for i in range (len(obstacles_coord_list)):
@@ -589,7 +638,7 @@ def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
         # print("Obstacles: ", i, " ", obstacles_coord_list[i])
         obstacle_grid_list.append(obstacle_grid)
 
-    # Indexing the exact ROW and COL, and asisgning it a 0.
+    # Indexing the exact ROW_Y and COL_X, and asisgning it a 0.
     # 0 MEANS OBSTACLE IS THERE
     for i in range(len(obstacle_grid_list)):
         grid[obstacle_grid_list[i][0], obstacle_grid_list[i][1]] = 0
@@ -602,8 +651,8 @@ def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
 
     ##################### PRINTING STATEMENTS #####################
     if printingTestFlag:
-        for i in range(ROW):
-            for j in range(COL):
+        for i in range(ROW_Y):
+            for j in range(COL_X):
                 # print(grid[i][j], end=' ')
                 print(f"Y: {i} X: {j} Value: {grid[j][i]}")
             print()
@@ -623,9 +672,10 @@ def modify_obstacles(aruco_true_pos, search_fruit_ind, fruits_true_pos):
 # This is to transpose the xy coordinates into a one-on-one with the grid spacing
 def convert_coord_to_grid(xy_coordinates):
     global spacing
-    global divisor
+    global divisor, roundingNumbder
     # Create an array that runs from -1.6 to 1.6
-    space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
+    # space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
+    space = [round(i*divisor, roundingNumbder) for i in range(start, end, spacing)]
     row_col_grid_indexing = []
 
     # Assign the equivalent grid representation of the xy coordinate
@@ -649,7 +699,8 @@ def convert_coord_to_grid(xy_coordinates):
 def convert_grid_to_coord(path_grid):
     global spacing
     global divisor
-    space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
+    # space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
+    space = [round(i*divisor, roundingNumbder) for i in range(start, end, spacing)]
     path_coord = np.zeros([len(path_grid), 2])
 
     # While running through 0 to 32
@@ -677,7 +728,8 @@ def convert_grid_to_coord(path_grid):
 def convert_to_coord(coordinate):
     global spacing
     global divisor
-    space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
+    # space = [round(i*divisor, 2) for i in range(-160, 170, spacing)]
+    space = [round(i*divisor, roundingNumbder) for i in range(start, end, spacing)]
     path_coord = np.zeros([len(coordinate), 2])
 
     # While running through 0 to 32
@@ -711,21 +763,21 @@ def convert_to_coord(coordinate):
 '''
 def increase_tolerance(grid):
     directions = [(0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (1, -1), (-1, 1), (-1, -1)]
-    for i in range(ROW):
-        for j in range(COL):
+    for i in range(ROW_Y):
+        for j in range(COL_X):
             if grid[i, j] == 0:
                 for successor in directions:
                     if i == 0 and successor[1] < 0:
                         pass
-                    elif i == ROW-1 and successor[1] > 0:
+                    elif i == ROW_Y-1 and successor[1] > 0:
                         pass
-                    elif 0 < i < ROW-1:
+                    elif 0 < i < ROW_Y-1:
                         
                         if j == 0 and successor[0] < 0:
                             pass
-                        elif j == COL-1 and successor[0] > 0:
+                        elif j == COL_X-1 and successor[0] > 0:
                             pass
-                        elif 0 < j < COL-1:
+                        elif 0 < j < COL_X-1:
                             grid[i+successor[1], j+successor[0]] = 0
     
     return grid
@@ -815,11 +867,19 @@ def plot_waypoints(waypoints):
     plt.xticks(space); plt.yticks(space)
     for i, (x, y) in enumerate(zip(x_points, y_points), 1):
         plt.annotate(f'{i}', (x, y), textcoords="offset points", xytext=(0,5), ha='center')
+
+    # Plot empty circles around ArUco markers with radius in data units (impactRadiusSize)
+    # for (x, y) in zip(x_points, y_points):
+    #     circle = plt.Circle((x, y), bot_size, edgecolor='b', facecolor='none')
+    #     plt.gca().add_patch(circle)
+
+
     plt.grid()
 
 
 def plot_full_map(aruco_true_pos, fruits_copy):
     global impactRadiusSize
+    aruco_size = 0.045
 
     space = np.array([-1.6, -1.2, -0.8, -0.4, 0, 0.4, 0.8, 1.2, 1.6])  
     plt.xticks(space); plt.yticks(space)
@@ -838,14 +898,17 @@ def plot_full_map(aruco_true_pos, fruits_copy):
 
     # Plot empty circles around ArUco markers with radius in data units (impactRadiusSize)
     for (x, y) in zip(x_aruco, y_aruco):
-        circle = plt.Circle((x, y), impactRadiusSize, edgecolor='r', facecolor='none')
+        circle = plt.Circle((x, y), aruco_size, edgecolor='r', facecolor='none')
         plt.gca().add_patch(circle)
 
     for i, (x, y) in enumerate(zip(x_aruco, y_aruco), 1):
         plt.annotate(f'aruco_{i}', (x, y), textcoords="offset points", xytext=(0,-10), ha='center')
 
     # fruit_color = [[128, 0, 0], [155, 255, 70], [255, 85, 0], [255, 180, 0], [0, 128, 0]]
-    fruit_colour = ["red", "cyan", "orange", "yellow", "green"]
+    if numberOfFruits != 15:
+        fruit_colour = ["red", "cyan", "orange"]
+    else:
+        fruit_colour = ["red", "cyan", "orange", "yellow", "green"]
     # fruit_colour = ["red", "cyan", "orange"]
 
     for i in range(len(fruits_copy)):
@@ -856,7 +919,7 @@ def plot_full_map(aruco_true_pos, fruits_copy):
 
     # Plot empty circles around fruits with radius in data units (impactRadiusSize)
     for (x, y) in zip(x_fruits, y_fruits):
-        circle = plt.Circle((x, y), impactRadiusSize, edgecolor='r', facecolor='none')
+        circle = plt.Circle((x, y), 0.05, edgecolor='r', facecolor='none')
         plt.gca().add_patch(circle)
 
 
@@ -927,4 +990,4 @@ def read_true_map(fname):
 '''
 
 if __name__ == "__main__":
-    main()
+    main(map=map_file)

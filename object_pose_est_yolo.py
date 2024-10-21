@@ -35,15 +35,17 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.081, 0.081, 0.067], 
     #                           '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.058], 
     #                           '5': [0.073, 0.073, 0.088]}
-    #  object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.077, 0.077, 0.067], 
-    #                           '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.058], 
-    #                           '5': [0.073, 0.073, 0.088]}
+    object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.077, 0.077, 0.075], 
+                              '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.056], 
+                              '5': [0.073, 0.073, 0.088]}
 
 
     # seems to be the best for now considering how scuffed our caps bounding box is 
-    object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.081, 0.081, 0.072], 
-                              '3': [0.075, 0.075, 0.075], '4': [0.113, 0.067, 0.056], 
-                              '5': [0.074, 0.074, 0.102]}
+    # object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.081, 0.081, 0.070], 
+    #                           '3': [0.075, 0.075, 0.075], '4': [0.113, 0.067, 0.056], 
+    #                           '5': [0.074, 0.074, 0.102]}
+
+
     
 
     #####################################################################
@@ -425,7 +427,7 @@ if __name__ == "__main__":
         
         # TODO show bounding boxes and convert back to rgb for inferencing 
         # bbox_img = cv2.cvtColor(bbox_img, cv2.COLOR_BGR2RGB)
-        cv2.imshow('bbox', input_image)
+       # cv2.imshow('bbox', input_image)
         cv2.waitKey(0)
 
         # obtain robot pose and bounding boxes for the corresponding image
