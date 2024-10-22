@@ -28,10 +28,12 @@ import argparse
 import matplotlib.pyplot as plt
 from slam.aruco_sensor import Marker
 import copy
-import a_star_path_planning as astar
-import d_star_lite_path_planning as dstar
-from d_star_lite_path_planning import Node, DStarLite
-import object_pose_estyolo_M4 as obj_est
+import a_star_path_planning_copy as astar
+# import a_star_path_planning as astar
+
+# import d_star_lite_path_planning as dstar
+# from d_star_lite_path_planning import Node, DStarLite
+import object_pose_est_yolo as obj_est
 
 
 class Operate:
@@ -51,7 +53,7 @@ class Operate:
         # TODO: Tune PID parameters here. If you don't want to use PID, set use_pid = 0
         # self.pibot_control.set_pid(use_pid=1, kp=0.1, ki=0, kd=0.0005)  
         # self.pibot_control.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)  
-        self.pibot_control.set_pid(use_pid=1, kp=0.0006, ki=0.000, kd=0.000)  
+        self.pibot_control.set_pid(use_pid=1, kp=0.025, ki=0.000, kd=0.0000)
 
         self.lab_output_dir = 'lab_output/'
         if not os.path.exists(self.lab_output_dir):
@@ -93,7 +95,7 @@ class Operate:
         self.double_reset_comfirm = 0
         self.image_id = 0
         self.notification = 'Press ENTER to start SLAM'
-        self.count_down = 600 # 10 min timer 
+        self.count_down = 300 # 5 min timer 
         self.start_time = time.time()
         # NOTE changed out time.time to time.perfcounter for more accurate 
         self.control_clock = time.time()
@@ -109,10 +111,11 @@ class Operate:
         self.curr_waypoint_count = 0
         self.total_waypoints_gone = 0
         self.localising_flag = False
+        self.confirming_flag = False
         self.prev_pose = np.zeros((3,1))
         self.guessed_pose = np.zeros((3,1))
         self.pos_read_flag = False
-        self.camera_offset = 0.1   # NOTE: measured from front of car to front of ECE4078 label on car
+        self.camera_offset = 0   # NOTE: measured from front of car to front of ECE4078 label on car
         self.wheel_diameter = 68e-3 # yoinked from cytron 
         self.ticks_per_revolution = 20
 
@@ -145,43 +148,46 @@ class Operate:
     def control_zero_ticks(self):
         self.take_pic()
         drive_meas = Drive(0.0, 0.0, 0,0)
-        len_measurements = self.slam_gui_update(drive_meas, canvas)
+        measurements = self.slam_gui_update(drive_meas, canvas)
     
-        return len_measurements
+        return measurements
     
 
     # NOTE Drive by number of ticks continuously
     def control_tick(self, lv, rv, num_ticks):
+        
         # This file now contains time.sleeps throughout, so the timer would have to be reset at the start
         # so that the small increments of dt would be more accurate
         self.control_clock = time.time()
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
 
+        left_speed, right_speed = self.pibot_control.set_velocity([lv, rv])
         # this is basically the while true loop of the operate's main 
         while True: 
             # call to operate take pic
-            self.take_pic()
+            # self.take_pic()
 
             # call to control
-            left_speed, right_speed = self.pibot_control.set_velocity([lv, rv])
             dt = time.time() - self.control_clock
             # dt = time.perf_counter() - self.control_clock
             curr_ticks = self.pibot_control.get_counter_values()
             ticks_travelled_left = curr_ticks[0] - initial_ticks[0]
             ticks_travelled_right = curr_ticks[1] - initial_ticks[1]
-            print(f"Curr ticks: {curr_ticks}")
+            # print(f"Curr ticks: {curr_ticks}")
             # NOTE: this needs to be tuned! 
             drive_meas = Drive(0.3*left_speed, 0.3*right_speed, dt)
             self.control_clock = time.time()
             # self.control_clock = time.perf_counter()
+            if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks: 
+                self.slam_gui_update(drive_meas, canvas)
+                break
 
             # call to update_slam
             self.slam_gui_update(drive_meas, canvas)
+            
             # print(f"pose update: {self.get_robot_pose()}")
 
-            if ticks_travelled_left >= num_ticks and ticks_travelled_right >= num_ticks: 
-                break
 
         self.pibot_control.set_velocity([0,0])
         time.sleep(0.25)
@@ -194,7 +200,7 @@ class Operate:
 
         initial_ticks = self.pibot_control.get_counter_values()
         ticks_travelled_left, ticks_travelled_right = 0,0
-        wheel_rot_speed = 0.5
+        wheel_rot_speed = 0.4
         lv, rv = -wheel_rot_speed, wheel_rot_speed
 
         self.control_clock = time.time()
@@ -214,6 +220,7 @@ class Operate:
 
         # self.take_pic()
         dt = time.time() - self.control_clock
+        # self.take_pic()
         drive_meas = Drive(0.3*lv, 0.3*rv, dt)
         measurements = self.slam_gui_update(drive_meas, canvas)
         # sleep between steps for 0.25s 
@@ -224,9 +231,12 @@ class Operate:
         
     # NOTE one stop call to update slam and the pygame window
     def slam_gui_update(self, drive_meas, canvas):
+        # start_test = time.perf_counter()
         measurements = self.update_slam(drive_meas)
-        self.draw(canvas)
-        pygame.display.update()
+        if self.confirming_flag:
+            self.draw(canvas)
+            pygame.display.update()
+        # print(f"TEST TIME: {time.perf_counter()-start_test}")
         return measurements
 
     # camera control
@@ -301,12 +311,12 @@ class Operate:
                 # if there are more than 3 aruco markers, 
                 if (len(measurements) >= 2):        # if there are more than 3 aruco markers in sight
                     self.pos_read_flag = True       # the position to be read is the ekf corrected pose
-                    print("Reading SLAM position)")
+                    # print("Reading SLAM position)")
 
-
-        print(f"Final pred pose {self.get_robot_pose()}")
+        
+        print(f"Pose {self.get_robot_pose()}")
         angle = self.ekf.robot.state[2,0] * 180/np.pi
-        print(f"Angle: {angle}" )
+        # print(f"Angle: {angle}" )
         return measurements
 
         
@@ -439,10 +449,10 @@ class Operate:
                 self.command['wheel_speed'] = [-0.7, -0.7]
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                self.command['wheel_speed'] = [-0.5, 0.4]
+                self.command['wheel_speed'] = [-0.4, 0.4]
             # turn right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                self.command['wheel_speed'] = [0.4, -0.5]
+                self.command['wheel_speed'] = [0.4, -0.4]
             # stop
             elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 self.command['wheel_speed'] = [0, 0]
@@ -536,29 +546,29 @@ class Operate:
         plt.show() 
 
     def generate_path_astar(self, search_list, fruits_list, fruits_true_pos):
-        self.waypoints_list = astar.main(args.map)
+        self.waypoints_list = astar.main(args.map, search_list)
 
 
 ############################## D* LITE FUNCTIONS FOR OPERATE CLASS ########################
     
-    def generate_path_dstar(self):
-        self.ox, self.oy = dstar.generate_obstacles(fruit_true_pos, aruco_true_pos)
-        self.path_algo = DStarLite(self.ox, self.oy)
+    # def generate_path_dstar(self):
+    #     self.ox, self.oy = dstar.generate_obstacles(fruit_true_pos, aruco_true_pos)
+    #     self.path_algo = DStarLite(self.ox, self.oy)
 
-        sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L2(fruit_goals, aruco_true_pos)
+    #     sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L2(fruit_goals, aruco_true_pos)
         
-        # Reset waypoints list 
-        self.waypoints_list = []
-        for i in range(len(sx)):
-            # ive got no fucking clue what is happening here 
-            _, pathx, pathy = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
-            pathx.pop(0)
-            pathy.pop(0)
-            temp = [[x/10.0,y/10.0] for x, y in zip(pathx, pathy)]
-            self.waypoints_list.append(temp)
+    #     # Reset waypoints list 
+    #     self.waypoints_list = []
+    #     for i in range(len(sx)):
+    #         # ive got no clue what is happening here 
+    #         _, pathx, pathy = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
+    #         pathx.pop(0)
+    #         pathy.pop(0)
+    #         temp = [[x/10.0,y/10.0] for x, y in zip(pathx, pathy)]
+    #         self.waypoints_list.append(temp)
             
-        # Feedback
-        print(f"Path generated: {self.waypoints_list}")
+    #     # Feedback
+    #     print(f"Path generated: {self.waypoints_list}")
 
 
 
@@ -570,7 +580,8 @@ class Operate:
         Perform fruit search to all fruits in search list
         '''
         if self.command['auto_fruit_search_astar']:
-            print(f"Starting L2 auto_fruit_search..")
+            print(f">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            print(f"\nStarting L2 auto_fruit_search..")
             # self.curr_waypoint_count = 0
 
             if any(self.waypoints_list):
@@ -585,7 +596,11 @@ class Operate:
                     print("\n----------------------------------------------------------")
                     waypoint_to_go = self.waypoints_list[0][0]
                     print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {waypoint_to_go}")
-                    self.drive_to_point(waypoint_to_go)
+                    time.sleep(1)       # arbitrary time.sleep to read
+                    
+                    # if self.total_waypoints_gone > 1:
+                    if self.curr_waypoint_count > 1:
+                        self.drive_to_point(waypoint_to_go)
                     robot_pose = self.get_robot_pose()
 
                     print("Finished driving to waypoint: {}; New robot pose: {}".format(self.waypoints_list[0][0],robot_pose))
@@ -595,8 +610,9 @@ class Operate:
                     # print(f"bla 0 {self.waypoints_list[0]}, {len(self.waypoints_list[0])}")
                     # if (self.curr_waypoint_count > 1) and (len(self.waypoints_list[0]) > 1):
 
-                    # do localising everywhere except the very first waypt
-                    if (self.total_waypoints_gone > 1):
+                    # do localising everywhere except the very first waypt for each fruit
+                    # if (self.total_waypoints_gone > 1):
+                    if (self.curr_waypoint_count > 1):
                         self.localising_flag = True
                         self.localise_rotate_robot()
                         self.localising_flag = False
@@ -640,7 +656,7 @@ class Operate:
                     self.curr_waypoint_count += 1
 
                     # robot tries to drive to the waypoint
-                    print("\n----------------------------------------------------------")
+                    print("\n--------------------------------------------------------------------")
                     waypoint_to_go = self.waypoints_list[0][0]
                     print(f"Fruit {curr_fruit}, Waypoint {self.curr_waypoint_count}: {waypoint_to_go}")
                     self.drive_to_point(waypoint_to_go)
@@ -698,14 +714,14 @@ class Operate:
         '''
         # compute x and y distance to waypoint
         robot_pose = self.get_robot_pose()
-        print(f"Starting position: {robot_pose}")
+        print(f"\nStarting position: {robot_pose}")
         print(f"Robot is driving!")
 
         # 1. Robot rotates, turning towards the waypoint
         # ===================================================
 
-        y_dist_to_waypt = waypoint[1] - (robot_pose[1] - self.camera_offset*np.sin(robot_pose[2]))
-        x_dist_to_waypt = waypoint[0] - (robot_pose[0] - self.camera_offset*np.cos(robot_pose[2]))
+        y_dist_to_waypt = waypoint[1] - (robot_pose[1] - self.camera_offset*np.sin((robot_pose[2])))
+        x_dist_to_waypt = waypoint[0] - (robot_pose[0] - self.camera_offset*np.cos((robot_pose[2])))
         angle_to_waypt = np.arctan2(y_dist_to_waypt, x_dist_to_waypt) # angle measured in rad, from theta = 0
         # this is the angle that the robot needs to turn, in radians. sign determines direction of turning
         turning_angle = angle_to_waypt - robot_pose[2]         
@@ -727,8 +743,8 @@ class Operate:
 
         return None
     
-
-    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.5, rotate_speed_offset=0.05):
+    #rot speed=0.5
+    def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.4, rotate_speed_offset=0.05):
         '''
         This function makes the robot turn a fixed angle by counting encoder ticks
         '''
@@ -736,14 +752,8 @@ class Operate:
         # clamp angle between -180 to 180 deg 
         turning_angle = clamp_angle(turning_angle)
         turning_angle_deg = np.rad2deg(turning_angle)
+        tick_offset = 0
 
-        abs_turning_angle_deg = abs(turning_angle_deg)
-        if abs_turning_angle_deg > 50:
-            tick_offset = 3
-        elif abs_turning_angle_deg > 30:
-            tick_offset = 0
-        else: 
-            tick_offset = 0
 
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
@@ -755,13 +765,32 @@ class Operate:
         # distance_per_wheel = (baseline/2) * turning_angle
         turning_revolutions = distance_per_wheel / wheel_circum
 
+        # there will be an additional 8 ticks-ish offset for angles larger than 150 deg 
+        rem_turning_angle_deg = abs(turning_angle_deg)
+        # rem_turning_angle_deg = 45 * round(int(rem_turning_angle_deg)/45)
+        
+        if abs(turning_angle_deg) > 160:
+            tick_offset += 3
+            rem_turning_angle_deg -= 45
+    
+        # for angles generally larger than 45 deg, add 3 ticks offset per 45 degree deductable
+        if rem_turning_angle_deg > 50:
+            while rem_turning_angle_deg > 45:
+                tick_offset += 2
+                rem_turning_angle_deg -= 45
+
+        # theoretical number of ticks are accurate for 45 degrees and under
+        
+
+
+
         # if turn_ticks has been given be default, none of the previous calculations matter anymore
         if turn_ticks != 0:
             num_ticks = turn_ticks
         else:
             num_ticks = np.round(abs(turning_revolutions * self.ticks_per_revolution)) + tick_offset
-        
-        print(f' /// Turning for {num_ticks:.2f} ticks to {turning_angle_deg:.2f}')
+
+        print(f' /// Turning for {num_ticks:.2f} ticks with offset {tick_offset} to {turning_angle_deg:.2f}')
 
         # assign speed direction according to sign of angle
         turn_speeds = [-wheel_rot_speed, wheel_rot_speed] if turning_angle > 0 else [wheel_rot_speed, -wheel_rot_speed]
@@ -770,30 +799,123 @@ class Operate:
         # drive by ticks, updating slam throughout
         if num_ticks != 0:
             self.control_tick(turn_speeds[0], turn_speeds[1], num_ticks)
+            
 
         return None
 
+    # def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.5, rotate_speed_offset=0.05):
+    #     '''
+    #     This function makes the robot turn a fixed angle by counting encoder ticks
+    #     '''
+
+    #     # clamp angle between -180 to 180 deg 
+    #     turning_angle = clamp_angle(turning_angle)
+    #     turning_angle_deg = np.rad2deg(turning_angle)
+    #     # NOTE: this can bbe tuned
+    #     max_turn_angle = np.deg2rad(45)
+
+    #     # this offset is not applied yet
+    #     abs_turning_angle_deg = abs(turning_angle_deg)
+    #     if abs_turning_angle_deg > 50:
+    #         tick_offset = 3
+    #     elif abs_turning_angle_deg > 30:
+    #         tick_offset = 0
+    #     else: 
+    #         tick_offset = 0
+        
+    #     print(f' /// Turning for ticks to {turning_angle_deg:.2f}')
+
+    #     # assign speed direction according to sign of angle
+    #     turn_speeds = [-wheel_rot_speed, wheel_rot_speed] if turning_angle > 0 else [wheel_rot_speed, -wheel_rot_speed]
+    #     # turn_speeds = [0.0, 0.0] if num_ticks == 0 else turn_speeds
+
+    #     # say the turning angle is +ve 150 deg
+    #     # turn speeds assigned to turn left
+    #     # remaining angle is 135 deg (but in radians)
+    #     # calls to control 45 deg (max_turn_angle)
+    #     # continues to do so until no more 45degs can be decremented from the driving 
+    #     # there will be a remaining 15 deg, then the final block will handle that turning
+    #     # note that the offset is not accounted for here
+    #     # NOTE: could include a time.sleep if needed
+
+    #     remaining_turning_angle = abs(turning_angle)
+
+    #     # split the turning into parts
+    #     while remaining_turning_angle >= max_turn_angle:
+    #         # if the turning angle magnitude is larger than the maximum turn angle, 
+    #         # then the turning ticks will take the max_turn_angle
+    #         num_ticks = self.calculate_turn_ticks(max_turn_angle)
+
+    #         self.control_tick(turn_speeds[0], turn_speeds[1], num_ticks)
+    #         print(f"------------- Split turn for {np.rad2deg(max_turn_angle)} for {num_ticks}")
+    #         # time.sleep(0.3)
+
+    #         # deduct the maximum turning angle from the required and clamp this angle again
+    #         remaining_turning_angle -= max_turn_angle
+    #         # i dont think the clamping is needed..?
+    #         remaining_turning_angle = clamp_angle(remaining_turning_angle)
+            
+    #     # if there is one last turn left, perform the turn
+    #     if remaining_turning_angle != 0:
+    #         num_ticks = self.calculate_turn_ticks(remaining_turning_angle)
+    #         self.control_tick(turn_speeds[0], turn_speeds[1], num_ticks)
+    #         print(f"------------- Split turn for {np.rad2deg(remaining_turning_angle)} for {num_ticks}")
+
+    #     return None 
+
+    # calculate the number of ticks needed for the turn
+    def calculate_turn_ticks(self, turning_angle):
+        # clamp angle between -180 to 180 deg 
+        turning_angle = clamp_angle(turning_angle)
+        # turning_angle_deg = np.rad2deg(turning_angle)
+
+        # wheel circumference
+        wheel_circum = np.pi * self.wheel_diameter
+        # If the robot pivoted 360°, the distance traveled by each wheel = circumference of this pivot circle
+        pivot_circum = np.pi * self.baseline 
+        distance_per_wheel = abs(turning_angle / (2*np.pi)) * pivot_circum
+
+        # distance each wheel must travel
+        # distance_per_wheel = (baseline/2) * turning_angle
+        turning_revolutions = distance_per_wheel / wheel_circum
+
+        # number of ticks based on ticks per revolution
+        num_ticks = np.round(abs(turning_revolutions * self.ticks_per_revolution))
+        
+        return num_ticks 
+    
+    #wheel_lin_speed=0.5
     def straight_drive(self, dist_to_waypt=0, wheel_lin_speed=0.5, wheel_rot_speed=0.4):
         '''
         this function makes the robot drive straight a certain time automatically 
         '''
 
-        if dist_to_waypt > 0:
-            self.tick_offset = 0
-        else: 
-            self.tick_offset = 0
+
 
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
         drive_revolutions = dist_to_waypt / wheel_circum
-        num_ticks = np.round(drive_revolutions * self.ticks_per_revolution + self.tick_offset)
+        num_ticks = np.round(drive_revolutions * self.ticks_per_revolution)
+
+        # trying to fix whatever underdriving it is 
+        tick_offset = 0
+        remaining_dist = np.round(dist_to_waypt, 1)
+
+        # seems to be consistent here, for each 0.1 meter after 0.2m, + 8 ticks
+
+        while remaining_dist > 0.2: 
+            tick_offset += 8
+            remaining_dist -= 0.1 
+        
+        num_ticks += tick_offset
+
 
         # time to drive straight for 
         drive_time = dist_to_waypt / (self.scale * wheel_lin_speed)
         drive_speeds = [wheel_lin_speed, wheel_lin_speed] 
 
         # number of ticks to drive striaght for
-        print(f'/// Driving for {num_ticks:.2f} ticks to {dist_to_waypt:.2f}')
+        print(f'/// Driving for {num_ticks:.2f} ticks with offset {tick_offset} to {dist_to_waypt:.2f}')
 
         # Drive to point, updating slam throughout
         if num_ticks != 0:
@@ -816,7 +938,9 @@ class Operate:
         '''
         Returns the current robot pose from ekf
         '''    
-        return self.ekf.robot.state.squeeze().tolist()
+        pose = self.ekf.robot.state.squeeze().tolist()
+        # pose[2] = np.rad2deg(pose[2])
+        return pose
 
 
     
@@ -827,26 +951,34 @@ class Operate:
     """
     def confirm_pose(self):
         # get initial robot pose
+        print(f":::::::::: Markers found. Confirming pose. ::::::::::")
         robot_pose = self.get_robot_pose()
 
         # keep updating slam but with zero movement
         pose_confirmation_count = 0
-        target_confirmation_count = 5
+        target_confirmation_count = 4
+        target_confirmation_limit = 30
+        times_tried_to_confirm = 0
         counter = 0
         while True:
-            # if counter >= 20:                   # this is taking too long
-            #     break
+
+            self.confirming_flag = True
             self.control_zero_ticks()
             # curr_best_pose = self.get_robot_pose()
             # this waits until the pose is stabilised within 0.005
             # ---- scuffed ass np call
-            if np.all(np.abs(np.array(self.get_robot_pose()) - np.array(robot_pose)) < 0.005):
+            times_tried_to_confirm += 1
+            if np.all(np.abs(np.array(self.get_robot_pose()) - np.array(robot_pose)) < 0.0005):
                 pose_confirmation_count += 1
-                if pose_confirmation_count >= target_confirmation_count:
-                    print("::::: Pose Confirmed! :::::")
-                    break
+            else: 
+                pose_confirmation_count = 0
+
+            if pose_confirmation_count >= target_confirmation_count or times_tried_to_confirm >= target_confirmation_limit:
+                print(":::::::: Pose Confirmed! :::::::::")
+                self.confirming_flag = False
+                break
             robot_pose = self.get_robot_pose()
-            time.sleep(0.05)
+            time.sleep(0.1)
             # the pose held by self.ekf.robot.state is now the confirmed pose 
             counter+=1
         return robot_pose
@@ -862,21 +994,36 @@ class Operate:
         num_rotations = 0
         turning_angle = np.pi/24            # 1 tick increments      
         num_turns = int(2*np.pi / turning_angle)
+        boleh_cfm = False
+        boleh_counter = 0
+        full_rotations = 0
         
         # Method 1: keeling myself
         # this should call for a rotate step and at the same time return its measurements 
-        while len(self.rotate_step()) < 2:
-            num_rotations += 1
-            print(f'Rotation: {num_rotations}')
-            if num_rotations >= num_turns:
-                break 
-            time.sleep(0.3)
-
-        # some fucking bullshit here to handle this thing if it never sees two markers
-        # currently fixed to just break out of the loop and drive as is
+        # BOLEHLAND
+        while not boleh_cfm:
+            while len(self.rotate_step()) < 2:
+                boleh_counter = 0
+                num_rotations += 1
+                print(f'Rotation: {num_rotations}')
+                if num_rotations >= num_turns:
+                    full_rotations += 1
+                    # break 
+                time.sleep(0.15)
+            
+            for i in range(6):
+                if len(self.control_zero_ticks()) >= 2:
+                    boleh_counter += 1
+            
+            if boleh_counter >= 3 or full_rotations >= 2:
+                boleh_cfm = True
+            else: 
+                print("Tak Boleh :(")
+            
+        
         
         self.confirm_pose()
-        print(f"Position after rotating: {self.get_robot_pose()}")
+        # print(f"Position after rotating: {self.get_robot_pose()}")
         time.sleep(0.25)
 
         return None 
@@ -946,71 +1093,71 @@ class Operate:
         return None
 
 
-    def path_update(self):
+    # def path_update(self):
 
-        update_flag= False
+    #     update_flag= False
 
-        # check if the fruit is in the list
-        if self.obj_est is not None:
-            for label, pose in self.obj_est.items():
-                if label not in fruit_list: 
-                    fruit_x= pose['x']
-                    fruit_y= pose['y']
+    #     # check if the fruit is in the list
+    #     if self.obj_est is not None:
+    #         for label, pose in self.obj_est.items():
+    #             if label not in fruit_list: 
+    #                 fruit_x= pose['x']
+    #                 fruit_y= pose['y']
 
-                    # what is going on here 
-                    # snap to grid
-                    fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
-                    fruit_y = dstar.round_nearest(fruit_y, 0.4)
+    #                 # what is going on here 
+    #                 # snap to grid
+    #                 fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
+    #                 fruit_y = dstar.round_nearest(fruit_y, 0.4)
                     
-                    fruit_coord= np.array([fruit_x,fruit_y])
-                    print(f"Fruit detected: {fruit_coord}")
+    #                 fruit_coord= np.array([fruit_x,fruit_y])
+    #                 print(f"Fruit detected: {fruit_coord}")
 
-                    if self.spoofed_obs:
-                        if not(fruit_coord==self.spoofed_obs).all(1).any():
-                            self.spoofed_obs.append(fruit_coord)
-                            print(f"New obstacle detected at position:{fruit_coord}")
-                            update_flag = True
+    #                 if self.spoofed_obs:
+    #                     if not(fruit_coord==self.spoofed_obs).all(1).any():
+    #                         self.spoofed_obs.append(fruit_coord)
+    #                         print(f"New obstacle detected at position:{fruit_coord}")
+    #                         update_flag = True
 
-                        else: 
-                            self.spoofed_obs.append(fruit_coord)
-                            print(f"New obstacle detected at position:{fruit_coord}")
-                            update_flag = True
+    #                     else: 
+    #                         self.spoofed_obs.append(fruit_coord)
+    #                         print(f"New obstacle detected at position:{fruit_coord}")
+    #                         update_flag = True
 
-                    # if the code calls to update
-                    if update_flag:
-                        obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
-                        self.ox.extend(obs_x)
-                        self.oy.extend(obs_y)
-                        self.path_algo= DStarLite(self.ox,self.oy)
+    #                 # if the code calls to update
+    #                 if update_flag:
+    #                     obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
+    #                     self.ox.extend(obs_x)
+    #                     self.oy.extend(obs_y)
+    #                     self.path_algo= DStarLite(self.ox,self.oy)
 
-                        # im not even gonna mess with htis number anymore... 
-                        current_pose = self.get_robot_pose
-                        current_x = current_pose[0]
-                        current_y = current_pose[1]
-                        rounded_x = dstar.round_nearest(current_x,0.2)
-                        rounded_y = dstar.round_nearest(current_y,0.2)
-                        current_pose = [rounded_x,rounded_y]
+    #                     # im not even gonna mess with htis number anymore... 
+    #                     current_pose = self.get_robot_pose
+    #                     current_x = current_pose[0]
+    #                     current_y = current_pose[1]
+    #                     rounded_x = dstar.round_nearest(current_x,0.2)
+    #                     rounded_y = dstar.round_nearest(current_y,0.2)
+    #                     current_pose = [rounded_x,rounded_y]
 
-                        # what even 
-                        sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
+    #                     # what even 
+    #                     sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
 
-                        # generate new path
-                        new_waypoints_list= []
-                        for i in range (len(sx)):
-                            _, path_x, path_y = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
-                            path_x.pop(0)
-                            path_y.pop(0)
-                            temp = [[x/10.0,y/10.0] for x, y in zip(path_x, path_y)]
-                            self.new_waypoints_list.append(temp)
+    #                     # generate new path
+    #                     new_waypoints_list= []
+    #                     for i in range (len(sx)):
+    #                         _, path_x, path_y = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
+    #                         path_x.pop(0)
+    #                         path_y.pop(0)
+    #                         temp = [[x/10.0,y/10.0] for x, y in zip(path_x, path_y)]
+    #                         self.new_waypoints_list.append(temp)
 
-                        self.waypoints_list = new_waypoints_list
-                        self.waypoints_list[0].insert(0,current_pose)
+    #                     self.waypoints_list = new_waypoints_list
+    #                     self.waypoints_list[0].insert(0,current_pose)
 
-                        print(f"\n\nNew path generated: {self.waypoints_list}")
+    #                     print(f"\n\nNew path generated: {self.waypoints_list}")
 
-                    return update_flag
+    #                 return update_flag
                 
-        return None
+    #     return None
         
 
 
@@ -1027,10 +1174,12 @@ class Operate:
                 self.command['wheel_speed'] = [-0.6, -0.6]
             # turn left
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
-                self.command['wheel_speed'] = [-0.45, 0.45]
+                # self.command['wheel_speed'] = [-0.45, 0.45]
+                self.command['wheel_speed'] = [-0.4, 0.4]
+
             # turn right
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                self.command['wheel_speed'] = [0.45, -0.45]
+                self.command['wheel_speed'] = [0.4, -0.4]
             # stop
             elif event.type == pygame.KEYUP or (event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE):
                 self.command['wheel_speed'] = [0, 0]
@@ -1094,7 +1243,7 @@ class Operate:
                 self.command['save_obj_detector'] = True
             
             # take fruit pic, save it, and estimate where it is 
-            # at this point i dont give a fuck what the keybindings are
+            # at this point idgaf what the keybindings are
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_h:
                 self.command['detect_and_est_fruit'] = True
 

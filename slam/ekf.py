@@ -151,7 +151,7 @@ class EKF:
         F = self.state_transition(drive_meas)       # This is A in lecture notes which is derivative matrix
         x = self.get_state_vector()                 # Obtaining the current state vector
         Q = self.predict_covariance(drive_meas)     # This is Sigma Q in lecture notes
-        #TODO CHANGEF FRM 0.01 TO 0.1
+        #TODO CHANGEF FRM 0.01 TO 0.1   was 0.03
         Q[0:3,0:3] += 0.1*np.eye(3)                # Motion model's noise covariance matrix      
 
         # TODO: add your codes here to compute the predicted x
@@ -178,7 +178,7 @@ class EKF:
         z = np.concatenate([lm.position.reshape(-1,1) for lm in measurements], axis=0)
         R = np.zeros((2*len(measurements),2*len(measurements)))
         for i in range(len(measurements)):
-            #TODO CHANGED Y=T=FRM 0.1 TO 0.01
+            #TODO CHANGED Y=T=FRM 0.1 TO 0.01 was 0.75
             R[2*i:2*i+2,2*i:2*i+2] = 0.01*np.eye(2)
 
         # Compute own measurements

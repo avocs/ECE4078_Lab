@@ -127,7 +127,7 @@ def find_num_ticks_straight():
     # wheel_speed_range = [[-0.4, 0.4], [-0.45, 0.45], [-0.5, 0.5]]
     # wheel_speed_range = [0.4,0.45,0.5]
     # wheel_speed_range = [0.4,0.45,0.5]
-    wheel_speed_range = [0.6]
+    wheel_speed_range = [0.5]
     distance_range= [0.5,1,1.5,2]
     angle_range = [np.pi/4 ,np.pi/2, np.pi, -np.pi]
     delta_ticks = []
@@ -173,7 +173,7 @@ def find_num_ticks_rotate():
     wheel_speed_range = [[-0.4, 0.4], [-0.45, 0.45], [-0.5, 0.5]]
     angle_range = [-np.pi/4 ,-np.pi/2, np.pi, -np.pi]
     delta_ticks = []
-    wheel_rot_speed= 0.45
+    wheel_rot_speed= 0.4
     wheel_rot_speed_offset = 0.0
 
 
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     pibot = PibotControl(args.ip,args.port)
     # pibot.set_pid(use_pid=1, kp=0.005, ki=0, kd=0.0005)
     # pibot.set_pid(use_pid=1, kp=0.0001, ki=0.0, kd=0.001)
-    pibot.set_pid(use_pid=1, kp=0.028, ki=0.000, kd=0.0000)
+    pibot.set_pid(use_pid=1, kp=0.025, ki=0.000, kd=0.0000)
 
     # calibrate pibot scale and baseline
     dataDir = "{}/param/".format(os.getcwd()) 

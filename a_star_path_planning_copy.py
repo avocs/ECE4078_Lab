@@ -83,9 +83,9 @@ divisor = 0.01
 roundingNumbder = 3
 thresholdDistance = 0
 bufferThreshold = 0.2
-map_file = 'fuck12.txt'
+map_file = 'fuck7.txt'
 segementedFile = True
-numberOfFruits = 13
+numberOfFruits = 15
 
 
 '''
@@ -153,7 +153,7 @@ def main(map="", search_list=[]):
         pass
     else:
         # Go to default
-        search_list =   ['redapple',  'orange','greenapple']
+        search_list =   ['redapple',  'orange','greenapple','mango','capsicum']
     # search_list =   ['redapple', 'capsicum', 'orange']
     # search_list =   ['mango']
     search_index = []
@@ -508,7 +508,7 @@ def a_star_search(grid, src, dest):
 ##################### 
 # PATH SIMPLICATION
 # intention is to cut down on number of waypoints required to travel 
-def simplify_path(all_waypoints, threshold=0.75):
+def simplify_path(all_waypoints, threshold=0.5):
     new_path = []
 
     if printingTestFlag:
@@ -523,20 +523,25 @@ def simplify_path(all_waypoints, threshold=0.75):
             
             # check for same xcoord
             if (new_path[-1][0] == new_path[-2][0]):
-                if round(abs(new_path[-1][1] - new_path[-2][1]), 2) < threshold:
-                    if all_waypoints[j+1][0] == new_path[-1][0]:
-                        new_path.pop()
+                # if round(abs(new_path[-1][1] - new_path[-2][1]), 2) < threshold:
+                #     if all_waypoints[j+1][0] == new_path[-1][0]:
+                #         new_path.pop()
+                if calculate_h_value_points(new_path[-1], new_path[-2]) < threshold:
+                    new_path.pop()
             
             # check for same ycoord
             elif (new_path[-1][1] == new_path[-2][1]):
-                if round(abs(new_path[-1][1] - new_path[-2][1]), 2) < threshold:
-                    if all_waypoints[j+1][1] == new_path[-1][1]:
-                        new_path.pop()
+                # if round(abs(new_path[-1][1] - new_path[-2][1]), 2) < threshold:
+                    # if all_waypoints[j+1][1] == new_path[-1][1]:
+                    # new_path.pop()
+                if calculate_h_value_points(new_path[-1], new_path[-2]) < threshold:
+                    new_path.pop()
             
             # check same diagonal/direction
             elif (round(all_waypoints[j+1][0] - all_waypoints[j][0],2) == round(all_waypoints[j][0] - all_waypoints[j-1][0],2) and round(all_waypoints[j+1][1] - all_waypoints[j][1],2) == round(all_waypoints[j][1] - all_waypoints[j-1][1],2)):
                 if calculate_h_value_points(new_path[-1],new_path[-2]) < threshold:
                     new_path.pop()
+
     # add in final waypoint
     new_path.append(all_waypoints[-1])
 

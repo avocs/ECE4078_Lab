@@ -35,9 +35,9 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     # object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.081, 0.081, 0.067], 
     #                           '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.058], 
     #                           '5': [0.073, 0.073, 0.088]}
-    object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.077, 0.077, 0.075], 
-                              '3': [0.075, 0.075, 0.072], '4': [0.113, 0.067, 0.056], 
-                              '5': [0.073, 0.073, 0.088]}
+    object_dimensions_dict = {'1': [0.074,0.074,0.087], '2': [0.077, 0.077, 0.076], 
+                              '3': [0.076, 0.076, 0.072], '4': [0.113, 0.067, 0.056], 
+                              '5': [0.073, 0.073, 0.102]}
 
 
     # seems to be the best for now considering how scuffed our caps bounding box is 
@@ -92,11 +92,11 @@ def estimate_pose(camera_matrix, obj_info, robot_pose):
     
     # Save the estimated pose as a dictionary
     object_pose = {'x': fruit_world_x, 'y': fruit_world_y}
-    print(f'Object_pose class {object_class}: {object_pose} || robot pose{X_r:.4f} {Y_r:.4f} {theta_r:.4f}')
-    print(f"""
-    Box Width: {box_width:.4f}  | Box Height: {box_height:.4f}  | objdepth_c: {object_measured_depth:.4f} | bboxx: {bbox_centre_x:.4f}
-    X_fruitcam: {X_c:.4f}        | theta_fruitcam: {theta_cam:.4f}       | theta_fruitworld: {theta_rc:.4f}
-    """)
+    # print(f'Object_pose class {object_class}: {object_pose} || robot pose{X_r:.4f} {Y_r:.4f} {theta_r:.4f}')
+    # print(f"""
+    # Box Width: {box_width:.4f}  | Box Height: {box_height:.4f}  | objdepth_c: {object_measured_depth:.4f} | bboxx: {bbox_centre_x:.4f}
+    # X_fruitcam: {X_c:.4f}        | theta_fruitcam: {theta_cam:.4f}       | theta_fruitworld: {theta_rc:.4f}
+    # """)
     # object_pose_dict[object_list[object_num-1]] = object_pose
     ###########################################
     
@@ -183,88 +183,6 @@ def merge_estimations(object_map):
 
     return object_est, fruit_est
 
-
-# NOTE what the fuck is going on here
-def live_fruit_pose_update(self):
-    fileK = "{}intrinsic.txt".format('./calibration/param/')
-    camera_matrix = np.loadtxt(fileK, delimiter=',')    
-    
-    # a dictionary of all the saved detector outputs
-    # image_poses should contain all the robot poses recorded and its corresponding image file taken
-    image_poses = {}
-    with open('lab_output/pred.txt', 'r') as fp:
-        for line in fp.readlines():
-            pose_dict = ast.literal_eval(line) # pose_dict = {pose, predfname}
-            image_poses[pose_dict['predfname']] = pose_dict['pose'] # image_poses = {pred_n.png: robotpose}
-    print(f'Reading data from {len(image_poses.keys())} images..')
-
-    image_boundingboxes = {}
-    with open('lab_output/bbox.txt', 'r') as fb:
-        for line in fb.readlines():
-            bbox_dict = ast.literal_eval(line)
-            predfname =  bbox_dict['predfname']
-            if predfname not in image_boundingboxes:
-                image_boundingboxes[predfname] = []
-            image_boundingboxes[predfname].append([bbox_dict['label'], bbox_dict['bbox']])
-
-
-    # estimate pose of objects in each image
-
-    # TODO variables labelled 'full' means all fruit bboxes are being used to estimate pose without filtering out too near/too far boxes
-    model_path = os.path.join('YOLOv8', 'best_10k.pt')
-    yolo = ObjectDetector(model_path)
-    object_pose_dict = {}
-    object_pose_full_dict = {}
-    detected_type_list = []
-    detected_type_full_list = []
-
-    # for each image file, get the raw image's bounding boxes and robot pose info, estimate where the fruit is in the world frame, 
-    # then add these estimations into an object_pose_dict.
-    # object_pose_dict should collect the estimated poses of all objects across all pictures taken
-    for image_path in image_poses.keys():
-        input_image = cv2.imread(image_path)
-
-        img = cv2.cvtColor(input_image,cv2.COLOR_RGB2BGR)
-
-        # calls inference on the image and gets the bounding boxes coordinate results
-        # bounding_boxes, bbox_img = yolo.detect_single_image(img)
-        
-        # TODO show bounding boxes and convert back to rgb for inferencing 
-        # bbox_img = cv2.cvtColor(bbox_img, cv2.COLOR_BGR2RGB)
-        cv2.imshow('bbox', input_image)
-        cv2.waitKey(0)
-
-        # obtain robot pose and bounding boxes for the corresponding image
-        robot_pose = image_poses[image_path]
-        bounding_boxes = image_boundingboxes[image_path]
-
-        # for each bounding box in the list of boxes obtainable from the image,
-        for detection in bounding_boxes:
-            # detection[0] is the class label
-            label = detection[0]
-            # occurence is a tally of how many times a label's bounding box has appeared across all images
-            occurrence = detected_type_list.count(label)
-            occurrence_full = detected_type_full_list.count(label)
-            # for each bounding box that appears, estimate where it is on the map, then add the results as an entry to object_pose_dict
-            object_pose_entry, object_pose_rejected = estimate_pose(camera_matrix, detection, robot_pose)
-           
-            # if the bounding box is not invalid, add this entry to the a filtered list to pass into merge
-            # but this pose will be added to a general dictionary anyway
-            if not object_pose_rejected:
-                object_pose_dict[f'{label}_{occurrence}'] = object_pose_entry
-                # adds the occurenece to the list, for tallying
-                detected_type_list.append(label)
-            
-            object_pose_full_dict[f'{label}_{occurrence_full}'] = object_pose_entry
-            detected_type_full_list.append(label)
-            # print(f'detection0 {detection[0]}, occurence {occurrence}')
-
-    # merge the estimations of the objects so that there are at most 1 estimations of each object type
-    object_est = {}
-    object_est, fruit_ests = merge_estimations(object_pose_dict)
-    object_est_full, fruit_ests_full = merge_estimations(object_pose_full_dict)
-
-    return object_est
 
 
 def main(): 

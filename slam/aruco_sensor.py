@@ -29,19 +29,27 @@ class ArucoSensor:
         measurements = []
         seen_tag = []
         for i in range(len(ids)):
+            
+
             tag = ids[i,0]
-            # Some markers appear multiple times but should only be handled once.
-            if tag in seen_tag:
-                continue
-            else:
-                seen_tag.append(tag)
+            # print("Outside, ", tag)
 
-            lm_tvecs = tvecs[ids==tag].T
-            lm_position = np.block([[lm_tvecs[2,:]],[-lm_tvecs[0,:]]])
-            lm_position = np.mean(lm_position, axis=1).reshape(-1,1)
+            # TODO
+            if tag in range (1,11):
+                # Some markers appear multiple times but should only be handled once.
+                # print("Inside: ", tag)
+                if tag in seen_tag:
+                    continue
+                else:
+                    seen_tag.append(tag)
 
-            lm_measurement = Marker(lm_position, tag)
-            measurements.append(lm_measurement)
+                lm_tvecs = tvecs[ids==tag].T
+                lm_position = np.block([[lm_tvecs[2,:]],[-lm_tvecs[0,:]]])
+                lm_position = np.mean(lm_position, axis=1).reshape(-1,1)
+
+                lm_measurement = Marker(lm_position, tag)
+                measurements.append(lm_measurement)
+                # print("LENGTH MEASUREMENT: ", len(measurements))
         
         # Draw markers on image copy
         img_marked = img.copy()
