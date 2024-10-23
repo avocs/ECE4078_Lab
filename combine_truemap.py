@@ -39,7 +39,7 @@ if __name__ == '__main__':
     parser.add_argument("--groundtruth", type=str, help="The ground truth file name.", default='truemap.txt')
     parser.add_argument("--estimate", type=str, help="The estimate file name.", default='lab_output/slam.txt')
     parser.add_argument("--transformed", type=str, help="The transformed file name.", default='lab_output/slam_transformed.txt')
-    parser.add_argument("--combined", type=str, help="The combined estimate file name.", default='final_map.txt')
+    parser.add_argument("--combined", type=str, help="The combined estimate file name.", default='combined_map.txt')
     # NOTE changed this to parse known
     args, _ = parser.parse_known_args()
 
