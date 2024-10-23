@@ -31,8 +31,6 @@ import copy
 import a_star_path_planning_copy as astar
 # import a_star_path_planning as astar
 
-# import d_star_lite_path_planning as dstar
-# from d_star_lite_path_planning import Node, DStarLite
 import object_pose_est_yolo as obj_est
 
 
@@ -803,65 +801,6 @@ class Operate:
 
         return None
 
-    # def rotate_drive(self, turning_angle=0, turn_ticks=0,wheel_lin_speed=0.5, wheel_rot_speed=0.5, rotate_speed_offset=0.05):
-    #     '''
-    #     This function makes the robot turn a fixed angle by counting encoder ticks
-    #     '''
-
-    #     # clamp angle between -180 to 180 deg 
-    #     turning_angle = clamp_angle(turning_angle)
-    #     turning_angle_deg = np.rad2deg(turning_angle)
-    #     # NOTE: this can bbe tuned
-    #     max_turn_angle = np.deg2rad(45)
-
-    #     # this offset is not applied yet
-    #     abs_turning_angle_deg = abs(turning_angle_deg)
-    #     if abs_turning_angle_deg > 50:
-    #         tick_offset = 3
-    #     elif abs_turning_angle_deg > 30:
-    #         tick_offset = 0
-    #     else: 
-    #         tick_offset = 0
-        
-    #     print(f' /// Turning for ticks to {turning_angle_deg:.2f}')
-
-    #     # assign speed direction according to sign of angle
-    #     turn_speeds = [-wheel_rot_speed, wheel_rot_speed] if turning_angle > 0 else [wheel_rot_speed, -wheel_rot_speed]
-    #     # turn_speeds = [0.0, 0.0] if num_ticks == 0 else turn_speeds
-
-    #     # say the turning angle is +ve 150 deg
-    #     # turn speeds assigned to turn left
-    #     # remaining angle is 135 deg (but in radians)
-    #     # calls to control 45 deg (max_turn_angle)
-    #     # continues to do so until no more 45degs can be decremented from the driving 
-    #     # there will be a remaining 15 deg, then the final block will handle that turning
-    #     # note that the offset is not accounted for here
-    #     # NOTE: could include a time.sleep if needed
-
-    #     remaining_turning_angle = abs(turning_angle)
-
-    #     # split the turning into parts
-    #     while remaining_turning_angle >= max_turn_angle:
-    #         # if the turning angle magnitude is larger than the maximum turn angle, 
-    #         # then the turning ticks will take the max_turn_angle
-    #         num_ticks = self.calculate_turn_ticks(max_turn_angle)
-
-    #         self.control_tick(turn_speeds[0], turn_speeds[1], num_ticks)
-    #         print(f"------------- Split turn for {np.rad2deg(max_turn_angle)} for {num_ticks}")
-    #         # time.sleep(0.3)
-
-    #         # deduct the maximum turning angle from the required and clamp this angle again
-    #         remaining_turning_angle -= max_turn_angle
-    #         # i dont think the clamping is needed..?
-    #         remaining_turning_angle = clamp_angle(remaining_turning_angle)
-            
-    #     # if there is one last turn left, perform the turn
-    #     if remaining_turning_angle != 0:
-    #         num_ticks = self.calculate_turn_ticks(remaining_turning_angle)
-    #         self.control_tick(turn_speeds[0], turn_speeds[1], num_ticks)
-    #         print(f"------------- Split turn for {np.rad2deg(remaining_turning_angle)} for {num_ticks}")
-
-    #     return None 
 
     # calculate the number of ticks needed for the turn
     def calculate_turn_ticks(self, turning_angle):
@@ -889,8 +828,6 @@ class Operate:
         '''
         this function makes the robot drive straight a certain time automatically 
         '''
-
-
 
         # wheel circumference
         wheel_circum = np.pi * self.wheel_diameter
@@ -993,7 +930,7 @@ class Operate:
 
         num_rotations = 0
         turning_angle = np.pi/24            # 1 tick increments      
-        num_turns = int(2*np.pi / turning_angle)
+        num_turns = 24
         boleh_cfm = False
         boleh_counter = 0
         full_rotations = 0
@@ -1030,7 +967,7 @@ class Operate:
 
 
 ########################################################################
-        # Method 2: forced to turn a shit ton 
+        # Method 2: forced to turn a ton 
         # for i in range(num_turns):
         #     print(f'Rotation: {i+1}, Total turned: {turning_angle*i}')
             
@@ -1052,114 +989,7 @@ class Operate:
 
         return abs(x - x_goal) <= threshold and abs(y - y_goal) <= threshold
     
-    # NOTE: newnew nightmare for vision! 
-    def live_estimate_and_path_replanning(self, target_fruit=None, target_fruit_true_pos=None):
-
-        # if the keyboard calls to detect and estimate fruit pose
-        if self.command['detect_and_est_fruit']: 
-            
-            self.obj_est = {}
-
-            # doing this twice..?
-            # for _ in range(2): 
-            # take a picture
-            self.take_pic()
-
-            # run one detection
-            self.command['run_obj_detector'] = True
-            self.detect_object()
-            self.command['run_obj_detector'] = False
-
-            self.draw(canvas)
-            pygame.display.update()
-
-            # save that estimation
-            self.command['save_obj_detector'] = True
-            self.record_data()
-            self.command['save_obj_detector'] = False
-
-            # run estimations on the image saved 
-            self.obj_est = obj_est.main()
-
-            # generate new waypoints, not sure what to do with this ret value 
-            update_flag = self.path_update()
-
-            self.command['detect_and_est_fruit'] = False
-
-            # generate new waypoints, not sure what to do with this ret value 
-            # update_flag = self.path_update()
-
-        # return update_flag
-        return None
-
-
-    # def path_update(self):
-
-    #     update_flag= False
-
-    #     # check if the fruit is in the list
-    #     if self.obj_est is not None:
-    #         for label, pose in self.obj_est.items():
-    #             if label not in fruit_list: 
-    #                 fruit_x= pose['x']
-    #                 fruit_y= pose['y']
-
-    #                 # what is going on here 
-    #                 # snap to grid
-    #                 fruit_x = dstar.round_nearest(fruit_x, 0.4) # can change to round number 1
-    #                 fruit_y = dstar.round_nearest(fruit_y, 0.4)
-                    
-    #                 fruit_coord= np.array([fruit_x,fruit_y])
-    #                 print(f"Fruit detected: {fruit_coord}")
-
-    #                 if self.spoofed_obs:
-    #                     if not(fruit_coord==self.spoofed_obs).all(1).any():
-    #                         self.spoofed_obs.append(fruit_coord)
-    #                         print(f"New obstacle detected at position:{fruit_coord}")
-    #                         update_flag = True
-
-    #                     else: 
-    #                         self.spoofed_obs.append(fruit_coord)
-    #                         print(f"New obstacle detected at position:{fruit_coord}")
-    #                         update_flag = True
-
-    #                 # if the code calls to update
-    #                 if update_flag:
-    #                     obs_x,obs_y = dstar.generate_spoofed_obs(self.spoofed_obs)
-    #                     self.ox.extend(obs_x)
-    #                     self.oy.extend(obs_y)
-    #                     self.path_algo= DStarLite(self.ox,self.oy)
-
-    #                     # im not even gonna mess with htis number anymore... 
-    #                     current_pose = self.get_robot_pose
-    #                     current_x = current_pose[0]
-    #                     current_y = current_pose[1]
-    #                     rounded_x = dstar.round_nearest(current_x,0.2)
-    #                     rounded_y = dstar.round_nearest(current_y,0.2)
-    #                     current_pose = [rounded_x,rounded_y]
-
-    #                     # what even 
-    #                     sx, sy, gx, gy, fx, fy, face_angle = dstar.generate_points_L3(current_pose, self.fruit_goals_remaining, aruco_true_pos, self.spoofed_obs)
-
-    #                     # generate new path
-    #                     new_waypoints_list= []
-    #                     for i in range (len(sx)):
-    #                         _, path_x, path_y = self.path_algo.main(Node(x=sx[i], y=sy[i]), Node(x=gx[i], y=gy[i]), spoofed_ox=[[]], spoofed_oy=[[]])
-    #                         path_x.pop(0)
-    #                         path_y.pop(0)
-    #                         temp = [[x/10.0,y/10.0] for x, y in zip(path_x, path_y)]
-    #                         self.new_waypoints_list.append(temp)
-
-    #                     self.waypoints_list = new_waypoints_list
-    #                     self.waypoints_list[0].insert(0,current_pose)
-
-    #                     print(f"\n\nNew path generated: {self.waypoints_list}")
-
-    #                 return update_flag
-                
-    #     return None
-        
-
+   
 
 ########################### KEYBOARD OPERATION DONE HERE ##############################
     
